@@ -52,10 +52,10 @@ let CoursesController = class CoursesController {
         return this.coursesService.getCoursesForStudent(req.user.id);
     }
     assignStudents(courseId, data, req) {
-        return this.coursesService.assignStudentsToCourse(courseId, req.user.userId, data.studentIds, data.deadline ? new Date(data.deadline) : undefined);
+        return this.coursesService.assignStudentsToCourse(courseId, req.user.id, data.studentIds, data.deadline ? new Date(data.deadline) : undefined);
     }
     removeAssignment(courseId, studentId, req) {
-        return this.coursesService.removeAssignment(courseId, studentId, req.user.userId);
+        return this.coursesService.removeAssignment(courseId, studentId, req.user.id);
     }
     getAssignments(courseId, req) {
         return this.coursesService.getAssignedStudents(courseId, req.user.id);
