@@ -1,0 +1,329 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
+// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum Role {
+  STUDENT
+  TEACHER
+  ADMIN
+  PARENT
+}
+
+enum AcademicMedal {
+  WOOD
+  STONE
+  IRON
+  SILVER
+  GOLD
+  DIAMOND
+  PLATINUM
+  VIBRANIUM
+}
+
+enum AcademicGrade {
+  F
+  D
+  D_PLUS
+  C
+  C_PLUS
+  B
+  B_PLUS
+  A
+  A_PLUS
+  E
+}
+
+enum LessonType {
+  LIVE
+  RECORDED
+}
+
+enum PaymentStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum CourseType {
+  PUBLIC
+  PREMIUM
+}
+
+model User {
+  id        String   @id @default(cuid())
+  email     String   @unique
+  password  String
+  name      String?
+  phone     String?  @unique
+  role      Role     @default(STUDENT)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Teacher relations
+  coursesOwned Course[] @relation("TeacherCourses")
+
+  // Student relations
+  enrollments Enrollment[]
+  progress    StudentProgress[]
+  testResults TestResult[]
+  payments    Payment[]
+
+  practiceTests       PracticeTest[]       @relation("TeacherPracticeTests")
+  practiceTestResults PracticeTestResult[]
+
+  // Parent relations
+  parentOf  ParentStudent[] @relation("Parent")
+  studentOf ParentStudent[] @relation("Student")
+
+  // Academic Status (Assigned by Teacher)
+  medal               AcademicMedal?
+  grade               AcademicGrade?
+  academicAssignedAt  DateTime?
+  assignedByTeacherId String?
+  assignedByTeacher   User?          @relation("TeacherAssignments", fields: [assignedByTeacherId], references: [id])
+  studentsAssigned    User[]         @relation("TeacherAssignments")
+
+  // Chat
+  sentMessages     ChatMessage[] @relation("SentMessages")
+  receivedMessages ChatMessage[] @relation("ReceivedMessages")
+
+  // Course Assignments (Premium Courses)
+  assignedCourses   CourseAssignment[] @relation("AssignedCourses")
+  courseAssignments CourseAssignment[] @relation("CourseAssignments")
+
+  // Parent Portal
+  parentRequests ParentRequest[]
+  loginHistory   LoginHistory[]
+  notifications  Notification[]
+}
+
+model ParentStudent {
+  id        String @id @default(cuid())
+  parentId  String
+  studentId String
+  parent    User   @relation("Parent", fields: [parentId], references: [id])
+  student   User   @relation("Student", fields: [studentId], references: [id])
+
+  @@unique([parentId, studentId])
+}
+
+model Course {
+  id          String             @id @default(cuid())
+  title       String
+  description String?
+  thumbnail   String?
+  courseType  CourseType         @default(PUBLIC)
+  teacherId   String
+  teacher     User               @relation("TeacherCourses", fields: [teacherId], references: [id])
+  chapters    Chapter[]
+  enrollments Enrollment[]
+  assignments CourseAssignment[]
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+}
+
+model Enrollment {
+  id        String   @id @default(cuid())
+  studentId String
+  courseId  String
+  student   User     @relation(fields: [studentId], references: [id])
+  course    Course   @relation(fields: [courseId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([studentId, courseId])
+}
+
+model CourseAssignment {
+  id          String    @id @default(cuid())
+  courseId    String
+  studentId   String
+  assignedBy  String    // Teacher who assigned
+  deadline    DateTime? // Optional completion deadline
+  assignedAt  DateTime  @default(now())
+  
+  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student     User      @relation("AssignedCourses", fields: [studentId], references: [id])
+  teacher     User      @relation("CourseAssignments", fields: [assignedBy], references: [id])
+  
+  @@unique([courseId, studentId])
+}
+
+model Chapter {
+  id       String   @id @default(cuid())
+  title    String
+  order    Int
+  courseId String
+  course   Course   @relation(fields: [courseId], references: [id])
+  lessons  Lesson[]
+  tests    Test[]
+}
+
+model Lesson {
+  id    String     @id @default(cuid())
+  title String
+  order Int
+  type  LessonType @default(RECORDED)
+
+  // Content fields
+  driveFileId String? // Google Drive File ID
+  mimeType    String? // video/mp4, application/pdf
+  duration    Int? // For videos (seconds)
+  pages       Int? // For PDFs
+
+  videoUrl String? // Deprecated, keep for backward compatibility or direct links
+  content  String? // Deprecated
+
+  chapterId String
+  chapter   Chapter @relation(fields: [chapterId], references: [id])
+
+  questionSet QuestionSet?
+  progress    StudentProgress[]
+}
+
+model QuestionSet {
+  id        String @id @default(cuid())
+  lessonId  String @unique
+  lesson    Lesson @relation(fields: [lessonId], references: [id])
+  questions Json // Array of questions
+}
+
+model StudentProgress {
+  id          String    @id @default(cuid())
+  studentId   String
+  lessonId    String
+  completed   Boolean   @default(false)
+  score       Int? // Score in the mandatory question set
+  completedAt DateTime?
+  student     User      @relation(fields: [studentId], references: [id])
+  lesson      Lesson    @relation(fields: [lessonId], references: [id])
+
+  @@unique([studentId, lessonId])
+}
+
+model Test {
+  id        String       @id @default(cuid())
+  title     String
+  questions Json // Large question bank
+  chapterId String
+  chapter   Chapter      @relation(fields: [chapterId], references: [id])
+  results   TestResult[]
+}
+
+model TestResult {
+  id        String   @id @default(cuid())
+  studentId String
+  testId    String
+  score     Int
+  rank      Int?
+  student   User     @relation(fields: [studentId], references: [id])
+  test      Test     @relation(fields: [testId], references: [id])
+  createdAt DateTime @default(now())
+}
+
+enum TestStatus {
+  COMPLETED
+  CHEATED
+}
+
+model PracticeTest {
+  id             String               @id @default(cuid())
+  title          String
+  totalQuestions Int
+  questions      Json // Array of Question objects
+  timeLimit      Int? // In minutes
+  teacherId      String
+  teacher        User                 @relation("TeacherPracticeTests", fields: [teacherId], references: [id])
+  results        PracticeTestResult[]
+  createdAt      DateTime             @default(now())
+  updatedAt      DateTime             @updatedAt
+}
+
+model PracticeTestResult {
+  id        String       @id @default(cuid())
+  studentId String
+  testId    String
+  score     Int
+  total     Int
+  timeTaken Int? // In seconds
+  rating    Float? // 1-5
+  status    TestStatus   @default(COMPLETED)
+  answers   Json? // Student's answers
+  student   User         @relation(fields: [studentId], references: [id])
+  test      PracticeTest @relation(fields: [testId], references: [id])
+  createdAt DateTime     @default(now())
+}
+
+model Payment {
+  id        String        @id @default(cuid())
+  studentId String
+  amount    Float
+  status    PaymentStatus @default(PENDING)
+  txRef     String?       @unique // Razorpay Order ID etc
+  student   User          @relation(fields: [studentId], references: [id])
+  createdAt DateTime      @default(now())
+}
+
+model ChatMessage {
+  id         String   @id @default(cuid())
+  senderId   String
+  receiverId String? // Null if broadcast
+  message    String
+  timestamp  DateTime @default(now())
+
+  sender   User  @relation("SentMessages", fields: [senderId], references: [id])
+  receiver User? @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model ParentRequest {
+  id           String        @id @default(cuid())
+  parentId     String
+  studentEmail String
+  status       RequestStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+
+  parent User @relation(fields: [parentId], references: [id])
+}
+
+enum RequestStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+model LoginHistory {
+  id         String    @id @default(cuid())
+  userId     String
+  loginTime  DateTime  @default(now())
+  logoutTime DateTime?
+  ipAddress  String?
+  device     String?
+  user       User      @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String           @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      NotificationType // INFO, WARNING, ALERT
+  isRead    Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ALERT
+}
