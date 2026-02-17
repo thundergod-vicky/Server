@@ -15,6 +15,19 @@ export class UsersService {
       where: { email },
       include: {
         assignedByTeacher: { select: { name: true } },
+        parentOf: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                grade: true,
+                medal: true,
+              },
+            },
+          },
+        },
       },
     });
   }
