@@ -9,7 +9,11 @@ Object.defineProperty(exports, "AuthController", {
     }
 });
 const _common = require("@nestjs/common");
+const _swagger = require("@nestjs/swagger");
 const _authservice = require("./auth.service");
+const _logindto = require("./dto/login.dto");
+const _registerdto = require("./dto/register.dto");
+const _logoutdto = require("./dto/logout.dto");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -26,6 +30,9 @@ function _ts_param(paramIndex, decorator) {
 }
 let AuthController = class AuthController {
     async login(loginDto) {
+        if (!loginDto || !loginDto.email || !loginDto.password) {
+            throw new _common.UnauthorizedException('Missing email or password');
+        }
         const user = await this.authService.validateUser(loginDto.email, loginDto.password);
         if (!user) {
             throw new _common.UnauthorizedException('Invalid credentials');
@@ -36,9 +43,6 @@ let AuthController = class AuthController {
         return this.authService.register(registerDto);
     }
     async logout(body) {
-        // Simplified: usually would use Guard, but using ID for now if token not passed?
-        // Actually, better to use Guard and Request user id
-        // Since UseGuards is not imported, let's fix imports
         return this.authService.logout(body.userId);
     }
     constructor(authService){
@@ -47,32 +51,58 @@ let AuthController = class AuthController {
 };
 _ts_decorate([
     (0, _common.Post)('login'),
+    (0, _swagger.ApiOperation)({
+        summary: 'User login'
+    }),
+    (0, _swagger.ApiResponse)({
+        status: 200,
+        description: 'Login successful'
+    }),
+    (0, _swagger.ApiResponse)({
+        status: 401,
+        description: 'Invalid credentials'
+    }),
     _ts_param(0, (0, _common.Body)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        Object
+        typeof _logindto.LoginDto === "undefined" ? Object : _logindto.LoginDto
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AuthController.prototype, "login", null);
 _ts_decorate([
     (0, _common.Post)('register'),
+    (0, _swagger.ApiOperation)({
+        summary: 'User registration'
+    }),
+    (0, _swagger.ApiResponse)({
+        status: 201,
+        description: 'Registration successful'
+    }),
     _ts_param(0, (0, _common.Body)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        Object
+        typeof _registerdto.RegisterDto === "undefined" ? Object : _registerdto.RegisterDto
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AuthController.prototype, "register", null);
 _ts_decorate([
     (0, _common.Post)('logout'),
+    (0, _swagger.ApiOperation)({
+        summary: 'User logout'
+    }),
+    (0, _swagger.ApiResponse)({
+        status: 200,
+        description: 'Logged out successfully'
+    }),
     _ts_param(0, (0, _common.Body)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        Object
+        typeof _logoutdto.LogoutDto === "undefined" ? Object : _logoutdto.LogoutDto
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AuthController.prototype, "logout", null);
 AuthController = _ts_decorate([
+    (0, _swagger.ApiTags)('Auth'),
     (0, _common.Controller)('auth'),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [

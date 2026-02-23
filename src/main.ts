@@ -1,9 +1,23 @@
 import 'dotenv/config';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
+import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
+import { ValidationPipe } from '@nestjs/common';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
+  app.useGlobalPipes(new ValidationPipe());
+  // Swagger Configuration
+  const config = new DocumentBuilder()
+    .setTitle('Adhyayan API')
+    .setDescription('The Adhyayan API documentation')
+    .setVersion('1.0')
+    .addTag('Adhyayan')
+    .addBearerAuth()
+    .build();
+  const document = SwaggerModule.createDocument(app, config);
+  SwaggerModule.setup('api', app, document);
+
   // Enable CORS for frontend
   app.enableCors({
     origin: [
@@ -18,4 +32,4 @@ async function bootstrap() {
   });
   await app.listen(process.env.PORT ?? 3002);
 }
-bootstrap();
+void bootstrap();

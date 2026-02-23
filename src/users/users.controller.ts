@@ -9,43 +9,76 @@ import {
   Param,
   ForbiddenException,
 } from '@nestjs/common';
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
+  ApiBearerAuth,
+  ApiExcludeEndpoint,
+} from '@nestjs/swagger';
 import { UsersService } from './users.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { UpdateProfileDto } from './dto/update-profile.dto';
+import { UpdateAcademicStatusDto } from './dto/update-academic-status.dto';
+import { ParentRequestDto } from './dto/parent-request.dto';
+import { LinkParentStudentDto } from './dto/link-parent-student.dto';
 
+interface RequestWithUser {
+  user: {
+    userId?: string;
+    id?: string;
+    sub?: string;
+    role?: string;
+  };
+}
+
+@ApiTags('Users')
+@ApiBearerAuth()
 @Controller('users')
 export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
+  @ApiOperation({ summary: 'Get current user profile' })
+  @ApiResponse({ status: 200, description: 'Return user profile' })
+  getProfile(@Request() req: RequestWithUser) {
     const userId = req.user.userId || req.user.id || req.user.sub;
+    if (!userId) throw new ForbiddenException('User ID not found');
     return this.usersService.findById(userId);
   }
 
   @UseGuards(JwtAuthGuard)
   @Patch('profile')
-  async updateProfile(@Request() req, @Body() updateData: any) {
+  @ApiOperation({ summary: 'Update current user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  async updateProfile(
+    @Request() req: RequestWithUser,
+    @Body() updateData: UpdateProfileDto,
+  ) {
     const userId = req.user.userId || req.user.sub || req.user.id;
+    if (!userId) throw new ForbiddenException('User ID not found');
 
     if (updateData.password) {
       const bcrypt = await import('bcrypt');
       updateData.password = await bcrypt.hash(updateData.password, 10);
     }
 
-    return this.usersService.update(userId, updateData);
+    // Cast to any to bypass strict Prisma input type if DTO doesn't match perfectly
+    return this.usersService.update(userId, updateData as any);
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('students')
-  async getAllStudents(@Request() req) {
+  @ApiOperation({ summary: 'Get all students (Teachers/Admins only)' })
+  @ApiResponse({ status: 200, description: 'Return all students' })
+  @ApiResponse({ status: 403, description: 'Forbidden' })
+  async getAllStudents(@Request() req: RequestWithUser) {
+    const userId = req.user.userId || req.user.id || req.user.sub;
+    if (!userId) throw new ForbiddenException('User ID not found');
+
     const role =
-      req.user.role ||
-      (
-        await this.usersService.findById(
-          req.user.userId || req.user.id || req.user.sub,
-        )
-      )?.role;
+      req.user.role || (await this.usersService.findById(userId))?.role;
 
     if (role !== 'TEACHER' && role !== 'ADMIN') {
       throw new ForbiddenException(
@@ -57,12 +90,18 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Patch(':id/academic-status')
+  @ApiOperation({
+    summary: 'Update student academic status (Teachers/Admins only)',
+  })
+  @ApiResponse({ status: 200, description: 'Status updated' })
   async updateAcademicStatus(
     @Param('id') studentId: string,
-    @Request() req,
-    @Body() data: any,
+    @Request() req: RequestWithUser,
+    @Body() data: UpdateAcademicStatusDto,
   ) {
     const userId = req.user.userId || req.user.id || req.user.sub;
+    if (!userId) throw new ForbiddenException('User ID not found');
+
     const user = await this.usersService.findById(userId);
     const role = user?.role || req.user.role;
 
@@ -76,42 +115,52 @@ export class UsersController {
     return this.usersService.updateAcademicStatus(studentId, userId, data);
   }
 
-  // Parent Portal Endpoints
-
   @UseGuards(JwtAuthGuard)
   @Post('parent-request')
+  @ApiOperation({ summary: 'Create a parent-student link request' })
+  @ApiResponse({ status: 201, description: 'Request created' })
   async createParentRequest(
-    @Request() req,
-    @Body() body: { studentEmail: string },
+    @Request() req: RequestWithUser,
+    @Body() body: ParentRequestDto,
   ) {
     const userId = req.user.userId || req.user.id || req.user.sub;
+    if (!userId) throw new ForbiddenException('User ID not found');
     return this.usersService.createParentRequest(userId, body.studentEmail);
   }
 
+  @ApiExcludeEndpoint()
   @UseGuards(JwtAuthGuard)
   @Get('admin/parent-requests')
-  async getPendingRequests(@Request() req) {
-    // Should ideally check for Admin role here
+  @ApiOperation({ summary: 'Get all pending parent requests (Admins only)' })
+  @ApiResponse({ status: 200, description: 'Return pending requests' })
+  getPendingRequests() {
     return this.usersService.getPendingRequests();
   }
 
+  @ApiExcludeEndpoint()
   @UseGuards(JwtAuthGuard)
   @Post('admin/parent-request/:id/approve')
+  @ApiOperation({ summary: 'Approve a parent request (Admins only)' })
+  @ApiResponse({ status: 200, description: 'Request approved' })
   async approveRequest(@Param('id') id: string) {
     return this.usersService.approveRequest(id);
   }
 
+  @ApiExcludeEndpoint()
   @UseGuards(JwtAuthGuard)
   @Post('admin/parent-request/:id/reject')
+  @ApiOperation({ summary: 'Reject a parent request (Admins only)' })
+  @ApiResponse({ status: 200, description: 'Request rejected' })
   async rejectRequest(@Param('id') id: string) {
     return this.usersService.rejectRequest(id);
   }
 
+  @ApiExcludeEndpoint()
   @UseGuards(JwtAuthGuard)
   @Post('admin/link-parent-student')
-  async manualLinkParentStudent(
-    @Body() body: { parentId: string; studentEmail: string },
-  ) {
+  @ApiOperation({ summary: 'Manually link parent and student (Admins only)' })
+  @ApiResponse({ status: 201, description: 'Linked successfully' })
+  async manualLinkParentStudent(@Body() body: LinkParentStudentDto) {
     return this.usersService.manualLinkParentStudent(
       body.parentId,
       body.studentEmail,
@@ -120,8 +169,14 @@ export class UsersController {
 
   @UseGuards(JwtAuthGuard)
   @Get('parent/student-data/:studentId')
-  async getStudentData(@Param('studentId') studentId: string, @Request() req) {
+  @ApiOperation({ summary: 'Get linked student data (Parents only)' })
+  @ApiResponse({ status: 200, description: 'Return student data' })
+  async getStudentData(
+    @Param('studentId') studentId: string,
+    @Request() req: RequestWithUser,
+  ) {
     const parentId = req.user.userId || req.user.id || req.user.sub;
+    if (!parentId) throw new ForbiddenException('Parent ID not found');
     return this.usersService.getStudentData(parentId, studentId);
   }
 }
