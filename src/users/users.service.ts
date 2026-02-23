@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { User, Prisma } from '@prisma/client';
@@ -11,7 +12,7 @@ export class UsersService {
   ) {}
 
   async findOne(email: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { email },
       include: {
         assignedByTeacher: { select: { name: true } },
@@ -24,16 +25,35 @@ export class UsersService {
                 email: true,
                 grade: true,
                 medal: true,
+                profileSlug: true,
               },
             },
           },
         },
       },
     });
+
+    if (user && (!user.profileSlug || !user.profileSettings)) {
+      const updateData: any = {};
+      if (!user.profileSlug) updateData.profileSlug = crypto.randomUUID();
+      if (!user.profileSettings) {
+        updateData.profileSettings = {
+          showMedals: true,
+          showGrades: true,
+          showCourses: true,
+          showTestResults: true,
+        };
+      }
+      return this.prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+    }
+    return user;
   }
 
   async findById(id: string): Promise<User | null> {
-    return this.prisma.user.findUnique({
+    const user = await this.prisma.user.findUnique({
       where: { id },
       include: {
         assignedByTeacher: { select: { name: true } },
@@ -46,6 +66,7 @@ export class UsersService {
                 email: true,
                 grade: true,
                 medal: true,
+                profileSlug: true,
               },
             },
           },
@@ -53,8 +74,29 @@ export class UsersService {
         parentRequests: {
           orderBy: { createdAt: 'desc' },
         },
+        enrollments: {
+          include: {
+            course: {
+              select: { id: true, title: true, thumbnail: true },
+            },
+          },
+        },
+        practiceTestResults: {
+          include: {
+            test: { select: { id: true, title: true } },
+          },
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
+
+    if (user && !user.profileSlug) {
+      return this.prisma.user.update({
+        where: { id: user.id },
+        data: { profileSlug: crypto.randomUUID() },
+      });
+    }
+    return user;
   }
 
   async findAllStudents() {

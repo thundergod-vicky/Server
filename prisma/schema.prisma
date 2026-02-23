@@ -68,14 +68,16 @@ enum MessageType {
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  password  String
-  name      String?
-  phone     String?  @unique
-  role      Role     @default(STUDENT)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String   @id @default(cuid())
+  email           String   @unique
+  password        String
+  name            String?
+  phone           String?  @unique
+  role            Role     @default(STUDENT)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  profileSlug     String?  @unique @default(uuid())
+  profileSettings Json?    @default("{\"showMedals\":true, \"showGrades\":true, \"showCourses\":true, \"showTestResults\":true}")
 
   // Teacher relations
   coursesOwned Course[] @relation("TeacherCourses")
@@ -115,6 +117,21 @@ model User {
   parentRequests ParentRequest[]
   loginHistory   LoginHistory[]
   notifications  Notification[]
+
+  // New batch relations
+  batchesTaught   Batch[] @relation("TeacherBatches")
+  batchesEnrolled Batch[] @relation("StudentBatches")
+}
+
+model Batch {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  teacherId   String
+  teacher     User     @relation("TeacherBatches", fields: [teacherId], references: [id])
+  students    User[]   @relation("StudentBatches")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
 
 model ParentStudent {

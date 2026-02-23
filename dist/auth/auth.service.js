@@ -90,7 +90,9 @@ let AuthService = class AuthService {
                 id: user.id,
                 email: user.email,
                 name: user.name,
-                role: user.role
+                role: user.role,
+                profileSlug: user.profileSlug,
+                profileSettings: user.profileSettings
             }
         };
     }

@@ -13,6 +13,8 @@ import { NotificationsModule } from './notifications/notifications.module';
 import { EnrollmentModule } from './enrollment/enrollment.module';
 import { ProgressModule } from './progress/progress.module';
 import { AdminModule } from './admin/admin.module';
+import { BatchesModule } from './batches/batches.module';
+import { PublicModule } from './public/public.module';
 
 @Module({
   imports: [
@@ -28,6 +30,8 @@ import { AdminModule } from './admin/admin.module';
     EnrollmentModule,
     ProgressModule,
     AdminModule,
+    BatchesModule,
+    PublicModule,
   ],
   controllers: [AppController],
   providers: [AppService],

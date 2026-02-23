@@ -9,8 +9,50 @@ Object.defineProperty(exports, "UsersService", {
     }
 });
 const _common = require("@nestjs/common");
+const _crypto = /*#__PURE__*/ _interop_require_wildcard(require("crypto"));
 const _prismaservice = require("../prisma/prisma.service");
 const _notificationsservice = require("../notifications/notifications.service");
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -22,7 +64,7 @@ function _ts_metadata(k, v) {
 }
 let UsersService = class UsersService {
     async findOne(email) {
-        return this.prisma.user.findUnique({
+        const user = await this.prisma.user.findUnique({
             where: {
                 email
             },
@@ -40,16 +82,36 @@ let UsersService = class UsersService {
                                 name: true,
                                 email: true,
                                 grade: true,
-                                medal: true
+                                medal: true,
+                                profileSlug: true
                             }
                         }
                     }
                 }
             }
         });
+        if (user && (!user.profileSlug || !user.profileSettings)) {
+            const updateData = {};
+            if (!user.profileSlug) updateData.profileSlug = _crypto.randomUUID();
+            if (!user.profileSettings) {
+                updateData.profileSettings = {
+                    showMedals: true,
+                    showGrades: true,
+                    showCourses: true,
+                    showTestResults: true
+                };
+            }
+            return this.prisma.user.update({
+                where: {
+                    id: user.id
+                },
+                data: updateData
+            });
+        }
+        return user;
     }
     async findById(id) {
-        return this.prisma.user.findUnique({
+        const user = await this.prisma.user.findUnique({
             where: {
                 id
             },
@@ -67,7 +129,8 @@ let UsersService = class UsersService {
                                 name: true,
                                 email: true,
                                 grade: true,
-                                medal: true
+                                medal: true,
+                                profileSlug: true
                             }
                         }
                     }
@@ -76,9 +139,44 @@ let UsersService = class UsersService {
                     orderBy: {
                         createdAt: 'desc'
                     }
+                },
+                enrollments: {
+                    include: {
+                        course: {
+                            select: {
+                                id: true,
+                                title: true,
+                                thumbnail: true
+                            }
+                        }
+                    }
+                },
+                practiceTestResults: {
+                    include: {
+                        test: {
+                            select: {
+                                id: true,
+                                title: true
+                            }
+                        }
+                    },
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
                 }
             }
         });
+        if (user && !user.profileSlug) {
+            return this.prisma.user.update({
+                where: {
+                    id: user.id
+                },
+                data: {
+                    profileSlug: _crypto.randomUUID()
+                }
+            });
+        }
+        return user;
     }
     async findAllStudents() {
         return await this.prisma.user.findMany({
