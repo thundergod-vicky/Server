@@ -129,6 +129,18 @@ let UsersController = class UsersController {
         if (!parentId) throw new _common.ForbiddenException('Parent ID not found');
         return this.usersService.getStudentData(parentId, studentId);
     }
+    async getTeachers() {
+        return this.usersService.findAllTeachers();
+    }
+    async getParents(req) {
+        const userId = req.user.userId || req.user.id || req.user.sub;
+        if (!userId) throw new _common.ForbiddenException('User ID not found');
+        const role = req.user.role || (await this.usersService.findById(userId))?.role;
+        if (role !== 'TEACHER' && role !== 'ADMIN') {
+            throw new _common.ForbiddenException('Only teachers or admins can view parents');
+        }
+        return this.usersService.findAllParents();
+    }
     constructor(usersService){
         this.usersService = usersService;
     }
@@ -318,6 +330,29 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], UsersController.prototype, "getStudentData", null);
+_ts_decorate([
+    (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),
+    (0, _common.Get)('teachers'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Get all teachers for messaging directory'
+    }),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", []),
+    _ts_metadata("design:returntype", Promise)
+], UsersController.prototype, "getTeachers", null);
+_ts_decorate([
+    (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),
+    (0, _common.Get)('parents'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Get all parents (Teachers/Admins only)'
+    }),
+    _ts_param(0, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof RequestWithUser === "undefined" ? Object : RequestWithUser
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], UsersController.prototype, "getParents", null);
 UsersController = _ts_decorate([
     (0, _swagger.ApiTags)('Users'),
     (0, _swagger.ApiBearerAuth)(),

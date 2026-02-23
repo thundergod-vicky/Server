@@ -320,6 +320,41 @@ let UsersService = class UsersService {
             }
         });
     }
+    async findAllTeachers() {
+        return this.prisma.user.findMany({
+            where: {
+                role: 'TEACHER'
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true
+            }
+        });
+    }
+    async findAllParents() {
+        return this.prisma.user.findMany({
+            where: {
+                role: 'PARENT'
+            },
+            select: {
+                id: true,
+                name: true,
+                email: true,
+                role: true,
+                parentOf: {
+                    include: {
+                        student: {
+                            select: {
+                                name: true
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
     constructor(prisma, notificationsService){
         this.prisma = prisma;
         this.notificationsService = notificationsService;

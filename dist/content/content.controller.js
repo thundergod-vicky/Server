@@ -27,7 +27,11 @@ function _ts_param(paramIndex, decorator) {
 }
 let ContentController = class ContentController {
     async uploadFile(file) {
-        return this.supabaseService.uploadFile(file);
+        const result = await this.supabaseService.uploadFile(file);
+        return {
+            ...result,
+            url: `/content/stream/${result.id}`
+        };
     }
     async streamFile(req, res) {
         // Extract the file path from the URL after 'stream/'
