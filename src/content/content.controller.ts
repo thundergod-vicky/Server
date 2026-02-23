@@ -12,6 +12,13 @@ import { SupabaseService } from './supabase.service';
 import type { Response } from 'express';
 // import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // Uncomment when ready
 
+interface UploadResult {
+  id: string;
+  name: string;
+  mimeType: string;
+  webViewLink: string | null;
+}
+
 @Controller('content')
 export class ContentController {
   constructor(private readonly supabaseService: SupabaseService) {}
@@ -19,7 +26,11 @@ export class ContentController {
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    return this.supabaseService.uploadFile(file);
+    const result = await this.supabaseService.uploadFile(file);
+    return {
+      ...result,
+      url: `/content/stream/${result.id}`,
+    };
   }
 
   @Get('stream/*')

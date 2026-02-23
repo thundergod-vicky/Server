@@ -59,6 +59,14 @@ enum CourseType {
   PREMIUM
 }
 
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  VOICE
+  LINK
+}
+
 model User {
   id        String   @id @default(cuid())
   email     String   @unique
@@ -94,8 +102,10 @@ model User {
   studentsAssigned    User[]         @relation("TeacherAssignments")
 
   // Chat
-  sentMessages     ChatMessage[] @relation("SentMessages")
-  receivedMessages ChatMessage[] @relation("ReceivedMessages")
+  sentMessages         ChatMessage[] @relation("SentMessages")
+  receivedMessages     ChatMessage[] @relation("ReceivedMessages")
+  sentChatRequests     ChatRequest[] @relation("SentChatRequests")
+  receivedChatRequests ChatRequest[] @relation("ReceivedChatRequests")
 
   // Course Assignments (Premium Courses)
   assignedCourses   CourseAssignment[] @relation("AssignedCourses")
@@ -144,17 +154,17 @@ model Enrollment {
 }
 
 model CourseAssignment {
-  id          String    @id @default(cuid())
-  courseId    String
-  studentId   String
-  assignedBy  String    // Teacher who assigned
-  deadline    DateTime? // Optional completion deadline
-  assignedAt  DateTime  @default(now())
-  
-  course      Course    @relation(fields: [courseId], references: [id], onDelete: Cascade)
-  student     User      @relation("AssignedCourses", fields: [studentId], references: [id])
-  teacher     User      @relation("CourseAssignments", fields: [assignedBy], references: [id])
-  
+  id         String    @id @default(cuid())
+  courseId   String
+  studentId  String
+  assignedBy String // Teacher who assigned
+  deadline   DateTime? // Optional completion deadline
+  assignedAt DateTime  @default(now())
+
+  course  Course @relation(fields: [courseId], references: [id], onDelete: Cascade)
+  student User   @relation("AssignedCourses", fields: [studentId], references: [id])
+  teacher User   @relation("CourseAssignments", fields: [assignedBy], references: [id])
+
   @@unique([courseId, studentId])
 }
 
@@ -274,14 +284,30 @@ model Payment {
 }
 
 model ChatMessage {
-  id         String   @id @default(cuid())
+  id         String      @id @default(cuid())
   senderId   String
   receiverId String? // Null if broadcast
-  message    String
-  timestamp  DateTime @default(now())
+  message    String? // Can be null if it's media only
+  mediaUrl   String?
+  type       MessageType @default(TEXT)
+  timestamp  DateTime    @default(now())
 
   sender   User  @relation("SentMessages", fields: [senderId], references: [id])
   receiver User? @relation("ReceivedMessages", fields: [receiverId], references: [id])
+}
+
+model ChatRequest {
+  id           String        @id @default(cuid())
+  senderId     String
+  receiverId   String
+  firstMessage String
+  status       RequestStatus @default(PENDING)
+  createdAt    DateTime      @default(now())
+
+  sender   User @relation("SentChatRequests", fields: [senderId], references: [id])
+  receiver User @relation("ReceivedChatRequests", fields: [receiverId], references: [id])
+
+  @@unique([senderId, receiverId])
 }
 
 model ParentRequest {

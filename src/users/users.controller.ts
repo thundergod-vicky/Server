@@ -179,4 +179,25 @@ export class UsersController {
     if (!parentId) throw new ForbiddenException('Parent ID not found');
     return this.usersService.getStudentData(parentId, studentId);
   }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('teachers')
+  @ApiOperation({ summary: 'Get all teachers for messaging directory' })
+  async getTeachers() {
+    return this.usersService.findAllTeachers();
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Get('parents')
+  @ApiOperation({ summary: 'Get all parents (Teachers/Admins only)' })
+  async getParents(@Request() req: RequestWithUser) {
+    const userId = req.user.userId || req.user.id || req.user.sub;
+    if (!userId) throw new ForbiddenException('User ID not found');
+
+    const role = req.user.role || (await this.usersService.findById(userId))?.role;
+    if (role !== 'TEACHER' && role !== 'ADMIN') {
+      throw new ForbiddenException('Only teachers or admins can view parents');
+    }
+    return this.usersService.findAllParents();
+  }
 }
