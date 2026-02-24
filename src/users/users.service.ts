@@ -30,6 +30,20 @@ export class UsersService {
             },
           },
         },
+        studentOf: {
+          include: {
+            parent: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
+        parentRequests: {
+          orderBy: { createdAt: 'desc' },
+        },
       },
     });
 
@@ -47,6 +61,37 @@ export class UsersService {
       return this.prisma.user.update({
         where: { id: user.id },
         data: updateData,
+        include: {
+          assignedByTeacher: { select: { name: true } },
+          parentOf: {
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  grade: true,
+                  medal: true,
+                  profileSlug: true,
+                },
+              },
+            },
+          },
+          studentOf: {
+            include: {
+              parent: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          parentRequests: {
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       });
     }
     return user;
@@ -74,6 +119,17 @@ export class UsersService {
         parentRequests: {
           orderBy: { createdAt: 'desc' },
         },
+        studentOf: {
+          include: {
+            parent: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+              },
+            },
+          },
+        },
         enrollments: {
           include: {
             course: {
@@ -94,6 +150,50 @@ export class UsersService {
       return this.prisma.user.update({
         where: { id: user.id },
         data: { profileSlug: crypto.randomUUID() },
+        include: {
+          assignedByTeacher: { select: { name: true } },
+          parentOf: {
+            include: {
+              student: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                  grade: true,
+                  medal: true,
+                  profileSlug: true,
+                },
+              },
+            },
+          },
+          studentOf: {
+            include: {
+              parent: {
+                select: {
+                  id: true,
+                  name: true,
+                  email: true,
+                },
+              },
+            },
+          },
+          parentRequests: {
+            orderBy: { createdAt: 'desc' },
+          },
+          enrollments: {
+            include: {
+              course: {
+                select: { id: true, title: true, thumbnail: true },
+              },
+            },
+          },
+          practiceTestResults: {
+            include: {
+              test: { select: { id: true, title: true } },
+            },
+            orderBy: { createdAt: 'desc' },
+          },
+        },
       });
     }
     return user;
@@ -143,10 +243,30 @@ export class UsersService {
     });
   }
 
-  async update(id: string, data: Prisma.UserUpdateInput): Promise<User> {
+  async update(id: string, data: Prisma.UserUpdateInput): Promise<User | null> {
     return this.prisma.user.update({
       where: { id },
       data,
+      include: {
+        assignedByTeacher: { select: { name: true } },
+        parentOf: {
+          include: {
+            student: {
+              select: {
+                id: true,
+                name: true,
+                email: true,
+                grade: true,
+                medal: true,
+                profileSlug: true,
+              },
+            },
+          },
+        },
+        parentRequests: {
+          orderBy: { createdAt: 'desc' },
+        },
+      },
     });
   }
 

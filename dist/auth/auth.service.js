@@ -67,32 +67,38 @@ let AuthService = class AuthService {
     async validateUser(email, pass) {
         const user = await this.usersService.findOne(email);
         if (user && await _bcrypt.compare(pass, user.password)) {
-            const { password, ...result } = user;
+            const result = {
+                ...user
+            };
+            delete result.password;
             return result;
         }
         return null;
     }
     async login(user) {
+        const u = user;
         const payload = {
-            email: user.email,
-            sub: user.id,
-            role: user.role
+            email: u.email,
+            sub: u.id,
+            role: u.role
         };
         // Create login history
         await this.prisma.loginHistory.create({
             data: {
-                userId: user.id
+                userId: u.id
             }
         });
         return {
             access_token: this.jwtService.sign(payload),
             user: {
-                id: user.id,
-                email: user.email,
-                name: user.name,
-                role: user.role,
-                profileSlug: user.profileSlug,
-                profileSettings: user.profileSettings
+                id: u.id,
+                email: u.email,
+                name: u.name,
+                role: u.role,
+                profileSlug: u.profileSlug,
+                profileSettings: u.profileSettings,
+                parentOf: u.parentOf,
+                parentRequests: u.parentRequests
             }
         };
     }

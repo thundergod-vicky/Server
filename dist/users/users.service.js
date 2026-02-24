@@ -87,6 +87,22 @@ let UsersService = class UsersService {
                             }
                         }
                     }
+                },
+                studentOf: {
+                    include: {
+                        parent: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true
+                            }
+                        }
+                    }
+                },
+                parentRequests: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
                 }
             }
         });
@@ -105,7 +121,44 @@ let UsersService = class UsersService {
                 where: {
                     id: user.id
                 },
-                data: updateData
+                data: updateData,
+                include: {
+                    assignedByTeacher: {
+                        select: {
+                            name: true
+                        }
+                    },
+                    parentOf: {
+                        include: {
+                            student: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    grade: true,
+                                    medal: true,
+                                    profileSlug: true
+                                }
+                            }
+                        }
+                    },
+                    studentOf: {
+                        include: {
+                            parent: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true
+                                }
+                            }
+                        }
+                    },
+                    parentRequests: {
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    }
+                }
             });
         }
         return user;
@@ -138,6 +191,17 @@ let UsersService = class UsersService {
                 parentRequests: {
                     orderBy: {
                         createdAt: 'desc'
+                    }
+                },
+                studentOf: {
+                    include: {
+                        parent: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true
+                            }
+                        }
                     }
                 },
                 enrollments: {
@@ -173,6 +237,67 @@ let UsersService = class UsersService {
                 },
                 data: {
                     profileSlug: _crypto.randomUUID()
+                },
+                include: {
+                    assignedByTeacher: {
+                        select: {
+                            name: true
+                        }
+                    },
+                    parentOf: {
+                        include: {
+                            student: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true,
+                                    grade: true,
+                                    medal: true,
+                                    profileSlug: true
+                                }
+                            }
+                        }
+                    },
+                    studentOf: {
+                        include: {
+                            parent: {
+                                select: {
+                                    id: true,
+                                    name: true,
+                                    email: true
+                                }
+                            }
+                        }
+                    },
+                    parentRequests: {
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    },
+                    enrollments: {
+                        include: {
+                            course: {
+                                select: {
+                                    id: true,
+                                    title: true,
+                                    thumbnail: true
+                                }
+                            }
+                        }
+                    },
+                    practiceTestResults: {
+                        include: {
+                            test: {
+                                select: {
+                                    id: true,
+                                    title: true
+                                }
+                            }
+                        },
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    }
                 }
             });
         }
@@ -230,7 +355,33 @@ let UsersService = class UsersService {
             where: {
                 id
             },
-            data
+            data,
+            include: {
+                assignedByTeacher: {
+                    select: {
+                        name: true
+                    }
+                },
+                parentOf: {
+                    include: {
+                        student: {
+                            select: {
+                                id: true,
+                                name: true,
+                                email: true,
+                                grade: true,
+                                medal: true,
+                                profileSlug: true
+                            }
+                        }
+                    }
+                },
+                parentRequests: {
+                    orderBy: {
+                        createdAt: 'desc'
+                    }
+                }
+            }
         });
     }
     // Parent Portal Methods

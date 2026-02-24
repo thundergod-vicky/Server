@@ -1,4 +1,4 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
@@ -15,32 +15,49 @@ export class AuthService {
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.usersService.findOne(email);
     if (user && (await bcrypt.compare(pass, user.password))) {
-      const { password, ...result } = user;
+      const result = { ...user };
+      delete (result as any).password;
       return result;
     }
     return null;
   }
 
   async login(user: any) {
-    const payload = { email: user.email, sub: user.id, role: user.role };
+    const u = user as {
+      id: string;
+      email: string;
+      name: string;
+      role: any;
+      profileSlug?: string;
+      profileSettings?: any;
+      parentOf?: any[];
+      parentRequests?: any[];
+    };
+    
+    const payload = { 
+      email: u.email, 
+      sub: u.id, 
+      role: u.role 
+    };
 
     // Create login history
     await this.prisma.loginHistory.create({
       data: {
-        userId: user.id,
-        // IP and device could be extracted from request context if passed
+        userId: u.id,
       },
     });
 
     return {
       access_token: this.jwtService.sign(payload),
       user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        role: user.role,
-        profileSlug: user.profileSlug,
-        profileSettings: user.profileSettings,
+        id: u.id,
+        email: u.email,
+        name: u.name,
+        role: u.role,
+        profileSlug: u.profileSlug,
+        profileSettings: u.profileSettings,
+        parentOf: u.parentOf,
+        parentRequests: u.parentRequests,
       },
     };
   }
