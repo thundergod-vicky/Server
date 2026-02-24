@@ -10,7 +10,7 @@ Object.defineProperty(exports, "ContentController", {
 });
 const _common = require("@nestjs/common");
 const _platformexpress = require("@nestjs/platform-express");
-const _supabaseservice = require("./supabase.service");
+const _s3service = require("./s3.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -27,7 +27,7 @@ function _ts_param(paramIndex, decorator) {
 }
 let ContentController = class ContentController {
     async uploadFile(file) {
-        const result = await this.supabaseService.uploadFile(file);
+        const result = await this.s3Service.uploadFile(file);
         return {
             ...result,
             url: `/content/stream/${result.id}`
@@ -41,9 +41,9 @@ let ContentController = class ContentController {
         console.log('Streaming file:', decodedFileId);
         try {
             // Get file metadata to set proper content type
-            const metadata = await this.supabaseService.getFileMetadata(decodedFileId);
-            // Get file stream from Supabase
-            const stream = await this.supabaseService.getFileStream(decodedFileId);
+            const metadata = await this.s3Service.getFileMetadata(decodedFileId);
+            // Get file stream from S3
+            const stream = await this.s3Service.getFileStream(decodedFileId);
             // Set headers for proper PDF/video display
             res.setHeader('Content-Type', metadata.mimeType || 'application/octet-stream');
             res.setHeader('Accept-Ranges', 'bytes');
@@ -55,8 +55,8 @@ let ContentController = class ContentController {
             res.status(500).send('Failed to stream file');
         }
     }
-    constructor(supabaseService){
-        this.supabaseService = supabaseService;
+    constructor(s3Service){
+        this.s3Service = s3Service;
     }
 };
 _ts_decorate([
@@ -84,7 +84,7 @@ ContentController = _ts_decorate([
     (0, _common.Controller)('content'),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _supabaseservice.SupabaseService === "undefined" ? Object : _supabaseservice.SupabaseService
+        typeof _s3service.S3Service === "undefined" ? Object : _s3service.S3Service
     ])
 ], ContentController);
 

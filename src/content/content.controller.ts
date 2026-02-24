@@ -8,9 +8,8 @@ import {
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import { SupabaseService } from './supabase.service';
+import { S3Service } from './s3.service';
 import type { Response } from 'express';
-// import { JwtAuthGuard } from '../auth/jwt-auth.guard'; // Uncomment when ready
 
 interface UploadResult {
   id: string;
@@ -21,12 +20,12 @@ interface UploadResult {
 
 @Controller('content')
 export class ContentController {
-  constructor(private readonly supabaseService: SupabaseService) {}
+  constructor(private readonly s3Service: S3Service) {}
 
   @Post('upload')
   @UseInterceptors(FileInterceptor('file'))
   async uploadFile(@UploadedFile() file: Express.Multer.File) {
-    const result = await this.supabaseService.uploadFile(file);
+    const result = await this.s3Service.uploadFile(file);
     return {
       ...result,
       url: `/content/stream/${result.id}`,
@@ -44,11 +43,10 @@ export class ContentController {
 
     try {
       // Get file metadata to set proper content type
-      const metadata =
-        await this.supabaseService.getFileMetadata(decodedFileId);
+      const metadata = await this.s3Service.getFileMetadata(decodedFileId);
 
-      // Get file stream from Supabase
-      const stream = await this.supabaseService.getFileStream(decodedFileId);
+      // Get file stream from S3
+      const stream = await this.s3Service.getFileStream(decodedFileId);
 
       // Set headers for proper PDF/video display
       res.setHeader(

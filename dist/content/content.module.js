@@ -9,7 +9,7 @@ Object.defineProperty(exports, "ContentModule", {
     }
 });
 const _common = require("@nestjs/common");
-const _supabaseservice = require("./supabase.service");
+const _s3service = require("./s3.service");
 const _contentcontroller = require("./content.controller");
 const _prismamodule = require("../prisma/prisma.module");
 function _ts_decorate(decorators, target, key, desc) {
@@ -29,10 +29,10 @@ ContentModule = _ts_decorate([
             _contentcontroller.ContentController
         ],
         providers: [
-            _supabaseservice.SupabaseService
+            _s3service.S3Service
         ],
         exports: [
-            _supabaseservice.SupabaseService
+            _s3service.S3Service
         ]
     })
 ], ContentModule);
