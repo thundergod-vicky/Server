@@ -30,6 +30,7 @@ export class AuthService {
       role: any;
       profileSlug?: string;
       profileSettings?: any;
+      profileImage?: string;
       parentOf?: any[];
       parentRequests?: any[];
     };
@@ -56,6 +57,7 @@ export class AuthService {
         role: u.role,
         profileSlug: u.profileSlug,
         profileSettings: u.profileSettings,
+        profileImage: u.profileImage,
         parentOf: u.parentOf,
         parentRequests: u.parentRequests,
       },

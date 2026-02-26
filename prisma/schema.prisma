@@ -78,6 +78,7 @@ model User {
   updatedAt       DateTime @updatedAt
   profileSlug     String?  @unique @default(uuid())
   profileSettings Json?    @default("{\"showMedals\":true, \"showGrades\":true, \"showCourses\":true, \"showTestResults\":true}")
+  profileImage    String?
 
   // Teacher relations
   coursesOwned Course[] @relation("TeacherCourses")

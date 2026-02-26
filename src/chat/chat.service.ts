@@ -157,6 +157,7 @@ export class ChatService {
         name: true,
         email: true,
         role: true,
+        profileImage: true,
         parentOf: {
           include: {
             student: { select: { name: true } }
@@ -176,6 +177,7 @@ export class ChatService {
             name: true,
             email: true,
             role: true,
+            profileImage: true,
             parentOf: {
               include: {
                 student: { select: { name: true } }
@@ -197,6 +199,7 @@ export class ChatService {
             name: true,
             email: true,
             role: true,
+            profileImage: true,
           }
         }
       }

@@ -10,6 +10,8 @@ Object.defineProperty(exports, "S3Service", {
 });
 const _common = require("@nestjs/common");
 const _clients3 = require("@aws-sdk/client-s3");
+const _libstorage = require("@aws-sdk/lib-storage");
+const _nodehttphandler = require("@smithy/node-http-handler");
 const _s3requestpresigner = require("@aws-sdk/s3-request-presigner");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
@@ -24,21 +26,30 @@ let S3Service = class S3Service {
     async uploadFile(file) {
         const timestamp = Date.now();
         const path = `uploads/${timestamp}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
-        const command = new _clients3.PutObjectCommand({
-            Bucket: this.bucket,
-            Key: path,
-            Body: file.buffer,
-            ContentType: file.mimetype
+        const region = process.env.AWS_S3_REGION;
+        const bucket = this.bucket;
+        const upload = new _libstorage.Upload({
+            client: this.s3Client,
+            params: {
+                Bucket: bucket,
+                Key: path,
+                Body: file.buffer,
+                ContentType: file.mimetype
+            },
+            queueSize: 4,
+            partSize: 5 * 1024 * 1024
         });
         try {
-            await this.s3Client.send(command);
+            await upload.done();
+            const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${path}`;
             return {
                 id: path,
                 name: file.originalname,
                 mimeType: file.mimetype,
-                webViewLink: null
+                webViewLink: publicUrl
             };
         } catch (error) {
+            console.error('S3 upload error:', error);
             throw new _common.InternalServerErrorException(`Upload failed: ${error.message}`);
         }
     }
@@ -106,7 +117,11 @@ let S3Service = class S3Service {
             credentials: {
                 accessKeyId,
                 secretAccessKey
-            }
+            },
+            requestHandler: new _nodehttphandler.NodeHttpHandler({
+                connectionTimeout: 60000,
+                requestTimeout: 120000
+            })
         });
     }
 };

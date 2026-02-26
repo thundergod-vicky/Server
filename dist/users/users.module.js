@@ -13,6 +13,7 @@ const _usersservice = require("./users.service");
 const _userscontroller = require("./users.controller");
 const _prismamodule = require("../prisma/prisma.module");
 const _notificationsmodule = require("../notifications/notifications.module");
+const _contentmodule = require("../content/content.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -25,7 +26,8 @@ UsersModule = _ts_decorate([
     (0, _common.Module)({
         imports: [
             _prismamodule.PrismaModule,
-            _notificationsmodule.NotificationsModule
+            _notificationsmodule.NotificationsModule,
+            _contentmodule.ContentModule
         ],
         controllers: [
             _userscontroller.UsersController

@@ -19,6 +19,7 @@ export class PublicController {
         grade: true,
         academicAssignedAt: true,
         profileSettings: true,
+        profileImage: true,
         assignedByTeacher: {
           select: { name: true },
         },
@@ -68,6 +69,7 @@ export class PublicController {
       assignedByTeacher: (settings.showMedals || settings.showGrades) ? student.assignedByTeacher : null,
       enrollments,
       practiceTestResults,
+      profileImage: student.profileImage,
     };
   }
 }

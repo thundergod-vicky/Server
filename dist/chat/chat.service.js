@@ -164,6 +164,7 @@ let ChatService = class ChatService {
                 name: true,
                 email: true,
                 role: true,
+                profileImage: true,
                 parentOf: {
                     include: {
                         student: {
@@ -189,6 +190,7 @@ let ChatService = class ChatService {
                         name: true,
                         email: true,
                         role: true,
+                        profileImage: true,
                         parentOf: {
                             include: {
                                 student: {
@@ -215,7 +217,8 @@ let ChatService = class ChatService {
                         id: true,
                         name: true,
                         email: true,
-                        role: true
+                        role: true,
+                        profileImage: true
                     }
                 }
             }

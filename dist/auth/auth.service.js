@@ -97,6 +97,7 @@ let AuthService = class AuthService {
                 role: u.role,
                 profileSlug: u.profileSlug,
                 profileSettings: u.profileSettings,
+                profileImage: u.profileImage,
                 parentOf: u.parentOf,
                 parentRequests: u.parentRequests
             }

@@ -231,15 +231,34 @@ export class UsersService {
       data: {
         medal: data.medal,
         grade: data.grade,
-        assignedByTeacherId: teacherId,
+        assignedByTeacher: { connect: { id: teacherId } },
         academicAssignedAt: new Date(),
       },
     });
   }
 
+  private getRandomAvatar(): string {
+    const styles = ['fun-emoji', 'bottts', 'pixel-art', 'adventurer', 'notionists'];
+    const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+    const randomSeed = crypto.randomBytes(8).toString('hex');
+    return `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}`;
+  }
+
   async create(data: Prisma.UserCreateInput): Promise<User> {
+    const profileImage = data.profileImage || this.getRandomAvatar();
     return this.prisma.user.create({
-      data,
+      data: {
+        ...data,
+        profileImage,
+      },
+    });
+  }
+
+  async resetProfileImage(id: string): Promise<User | null> {
+    const randomAvatar = this.getRandomAvatar();
+    return this.prisma.user.update({
+      where: { id },
+      data: { profileImage: randomAvatar },
     });
   }
 

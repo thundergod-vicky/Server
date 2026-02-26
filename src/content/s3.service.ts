@@ -1,10 +1,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
-import { 
-  S3Client, 
-  PutObjectCommand, 
-  GetObjectCommand,
-  HeadObjectCommand 
-} from '@aws-sdk/client-s3';
+import { S3Client, GetObjectCommand, HeadObjectCommand } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import { NodeHttpHandler } from '@smithy/node-http-handler';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Readable } from 'stream';
 
@@ -31,30 +28,45 @@ export class S3Service {
         accessKeyId,
         secretAccessKey,
       },
+      requestHandler: new NodeHttpHandler({
+        connectionTimeout: 60000,
+        requestTimeout: 120000,
+      }),
     });
   }
 
   async uploadFile(file: Express.Multer.File) {
     const timestamp = Date.now();
     const path = `uploads/${timestamp}-${file.originalname.replace(/[^a-zA-Z0-9.-]/g, '_')}`;
+    const region = process.env.AWS_S3_REGION;
+    const bucket = this.bucket;
 
-    const command = new PutObjectCommand({
-      Bucket: this.bucket,
-      Key: path,
-      Body: file.buffer,
-      ContentType: file.mimetype,
+    const upload = new Upload({
+      client: this.s3Client,
+      params: {
+        Bucket: bucket,
+        Key: path,
+        Body: file.buffer,
+        ContentType: file.mimetype,
+      },
+      queueSize: 4,
+      partSize: 5 * 1024 * 1024,
     });
 
     try {
-      await this.s3Client.send(command);
+      await upload.done();
+      const publicUrl = `https://${bucket}.s3.${region}.amazonaws.com/${path}`;
       return {
-        id: path, // We use the key as the ID
+        id: path,
         name: file.originalname,
         mimeType: file.mimetype,
-        webViewLink: null,
+        webViewLink: publicUrl,
       };
     } catch (error) {
-      throw new InternalServerErrorException(`Upload failed: ${error.message}`);
+      console.error('S3 upload error:', error);
+      throw new InternalServerErrorException(
+        `Upload failed: ${(error as Error).message}`,
+      );
     }
   }
 

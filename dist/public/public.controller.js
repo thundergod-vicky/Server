@@ -38,6 +38,7 @@ let PublicController = class PublicController {
                 grade: true,
                 academicAssignedAt: true,
                 profileSettings: true,
+                profileImage: true,
                 assignedByTeacher: {
                     select: {
                         name: true
@@ -88,7 +89,8 @@ let PublicController = class PublicController {
             academicAssignedAt: settings.showMedals || settings.showGrades ? student.academicAssignedAt : null,
             assignedByTeacher: settings.showMedals || settings.showGrades ? student.assignedByTeacher : null,
             enrollments,
-            practiceTestResults
+            practiceTestResults,
+            profileImage: student.profileImage
         };
     }
     constructor(prisma){

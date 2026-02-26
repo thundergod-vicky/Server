@@ -9,6 +9,7 @@ Object.defineProperty(exports, "UsersController", {
     }
 });
 const _common = require("@nestjs/common");
+const _platformexpress = require("@nestjs/platform-express");
 const _swagger = require("@nestjs/swagger");
 const _usersservice = require("./users.service");
 const _jwtauthguard = require("../auth/jwt-auth.guard");
@@ -16,6 +17,7 @@ const _updateprofiledto = require("./dto/update-profile.dto");
 const _updateacademicstatusdto = require("./dto/update-academic-status.dto");
 const _parentrequestdto = require("./dto/parent-request.dto");
 const _linkparentstudentdto = require("./dto/link-parent-student.dto");
+const _s3service = require("../content/s3.service");
 function _getRequireWildcardCache(nodeInterop) {
     if (typeof WeakMap !== "function") return null;
     var cacheBabelInterop = new WeakMap();
@@ -87,6 +89,23 @@ let UsersController = class UsersController {
         // Cast to any to bypass strict Prisma input type if DTO doesn't match perfectly
         return this.usersService.update(userId, updateData);
     }
+    async uploadProfileImage(req, file) {
+        const userId = req.user.userId || req.user.sub || req.user.id;
+        if (!userId) throw new _common.ForbiddenException('User ID not found');
+        const uploadResult = await this.s3Service.uploadFile(file);
+        console.log('Upload Result:', uploadResult);
+        // Store the S3 key (id) so it can be routed through our secure stream endpoint
+        const result = await this.usersService.update(userId, {
+            profileImage: uploadResult.id
+        });
+        console.log('Updated User Profile Image:', result?.profileImage);
+        return result;
+    }
+    async resetProfileImage(req) {
+        const userId = req.user.userId || req.user.sub || req.user.id;
+        if (!userId) throw new _common.ForbiddenException('User ID not found');
+        return this.usersService.resetProfileImage(userId);
+    }
     async getAllStudents(req) {
         const userId = req.user.userId || req.user.id || req.user.sub;
         if (!userId) throw new _common.ForbiddenException('User ID not found');
@@ -141,8 +160,9 @@ let UsersController = class UsersController {
         }
         return this.usersService.findAllParents();
     }
-    constructor(usersService){
+    constructor(usersService, s3Service){
         this.usersService = usersService;
+        this.s3Service = s3Service;
     }
 };
 _ts_decorate([
@@ -181,6 +201,35 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], UsersController.prototype, "updateProfile", null);
+_ts_decorate([
+    (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),
+    (0, _common.Post)('profile-image'),
+    (0, _common.UseInterceptors)((0, _platformexpress.FileInterceptor)('file')),
+    (0, _swagger.ApiOperation)({
+        summary: 'Upload profile image'
+    }),
+    _ts_param(0, (0, _common.Request)()),
+    _ts_param(1, (0, _common.UploadedFile)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof RequestWithUser === "undefined" ? Object : RequestWithUser,
+        typeof Express === "undefined" || typeof Express.Multer === "undefined" || typeof Express.Multer.File === "undefined" ? Object : Express.Multer.File
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], UsersController.prototype, "uploadProfileImage", null);
+_ts_decorate([
+    (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),
+    (0, _common.Post)('profile-image/reset'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Remove profile image and reset to random avatar'
+    }),
+    _ts_param(0, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        typeof RequestWithUser === "undefined" ? Object : RequestWithUser
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], UsersController.prototype, "resetProfileImage", null);
 _ts_decorate([
     (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),
     (0, _common.Get)('students'),
@@ -359,7 +408,8 @@ UsersController = _ts_decorate([
     (0, _common.Controller)('users'),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
-        typeof _usersservice.UsersService === "undefined" ? Object : _usersservice.UsersService
+        typeof _usersservice.UsersService === "undefined" ? Object : _usersservice.UsersService,
+        typeof _s3service.S3Service === "undefined" ? Object : _s3service.S3Service
     ])
 ], UsersController);
 

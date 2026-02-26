@@ -33,10 +33,12 @@ let ContentController = class ContentController {
             url: `/content/stream/${result.id}`
         };
     }
-    async streamFile(req, res) {
-        // Extract the file path from the URL after 'stream/'
-        const fullPath = req.url; // e.g., '/content/stream/uploads/timestamp-filename.pdf'
-        const fileId = fullPath.replace('/content/stream/', '');
+    async streamFile(path, res) {
+        // path is the captured string or array from the wildcard route
+        const segments = Array.isArray(path) ? path : [
+            path
+        ];
+        const fileId = segments.join('/');
         const decodedFileId = decodeURIComponent(fileId);
         console.log('Streaming file:', decodedFileId);
         try {
@@ -70,8 +72,8 @@ _ts_decorate([
     _ts_metadata("design:returntype", Promise)
 ], ContentController.prototype, "uploadFile", null);
 _ts_decorate([
-    (0, _common.Get)('stream/*'),
-    _ts_param(0, (0, _common.Req)()),
+    (0, _common.Get)('stream/*path'),
+    _ts_param(0, (0, _common.Param)('path')),
     _ts_param(1, (0, _common.Res)()),
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [

@@ -340,14 +340,45 @@ let UsersService = class UsersService {
             data: {
                 medal: data.medal,
                 grade: data.grade,
-                assignedByTeacherId: teacherId,
+                assignedByTeacher: {
+                    connect: {
+                        id: teacherId
+                    }
+                },
                 academicAssignedAt: new Date()
             }
         });
     }
+    getRandomAvatar() {
+        const styles = [
+            'fun-emoji',
+            'bottts',
+            'pixel-art',
+            'adventurer',
+            'notionists'
+        ];
+        const randomStyle = styles[Math.floor(Math.random() * styles.length)];
+        const randomSeed = _crypto.randomBytes(8).toString('hex');
+        return `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}`;
+    }
     async create(data) {
+        const profileImage = data.profileImage || this.getRandomAvatar();
         return this.prisma.user.create({
-            data
+            data: {
+                ...data,
+                profileImage
+            }
+        });
+    }
+    async resetProfileImage(id) {
+        const randomAvatar = this.getRandomAvatar();
+        return this.prisma.user.update({
+            where: {
+                id
+            },
+            data: {
+                profileImage: randomAvatar
+            }
         });
     }
     async update(id, data) {

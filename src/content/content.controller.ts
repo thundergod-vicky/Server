@@ -4,19 +4,12 @@ import {
   UseInterceptors,
   UploadedFile,
   Get,
-  Req,
+  Param,
   Res,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { S3Service } from './s3.service';
 import type { Response } from 'express';
-
-interface UploadResult {
-  id: string;
-  name: string;
-  mimeType: string;
-  webViewLink: string | null;
-}
 
 @Controller('content')
 export class ContentController {
@@ -32,11 +25,14 @@ export class ContentController {
     };
   }
 
-  @Get('stream/*')
-  async streamFile(@Req() req: any, @Res() res: Response) {
-    // Extract the file path from the URL after 'stream/'
-    const fullPath = req.url; // e.g., '/content/stream/uploads/timestamp-filename.pdf'
-    const fileId = fullPath.replace('/content/stream/', '');
+  @Get('stream/*path')
+  async streamFile(
+    @Param('path') path: string | string[],
+    @Res() res: Response,
+  ) {
+    // path is the captured string or array from the wildcard route
+    const segments = Array.isArray(path) ? path : [path];
+    const fileId = segments.join('/');
     const decodedFileId = decodeURIComponent(fileId);
 
     console.log('Streaming file:', decodedFileId);
