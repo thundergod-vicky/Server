@@ -15,6 +15,7 @@ import { ProgressModule } from './progress/progress.module';
 import { AdminModule } from './admin/admin.module';
 import { BatchesModule } from './batches/batches.module';
 import { PublicModule } from './public/public.module';
+import { OmrModule } from './omr/omr.module';
 
 @Module({
   imports: [
@@ -32,6 +33,7 @@ import { PublicModule } from './public/public.module';
     AdminModule,
     BatchesModule,
     PublicModule,
+    OmrModule,
   ],
   controllers: [AppController],
   providers: [AppService],

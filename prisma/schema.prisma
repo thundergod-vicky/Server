@@ -92,6 +92,8 @@ model User {
   practiceTests       PracticeTest[]       @relation("TeacherPracticeTests")
   practiceTestResults PracticeTestResult[]
 
+  omrTemplates OmrTemplate[] @relation("TeacherOmrTemplates")
+
   // Parent relations
   parentOf  ParentStudent[] @relation("Parent")
   studentOf ParentStudent[] @relation("Student")
@@ -370,4 +372,30 @@ enum NotificationType {
   INFO
   WARNING
   ALERT
+}
+
+model OmrTemplate {
+  id           String      @id @default(cuid())
+  name         String
+  description  String?
+  motherOmrUrl String
+  answers      Json // Correct options for each question
+  teacherId    String
+  teacher      User        @relation("TeacherOmrTemplates", fields: [teacherId], references: [id])
+  results      OmrResult[]
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+model OmrResult {
+  id          String      @id @default(cuid())
+  studentName String?
+  studentId   String? // Optional if we can map to a user
+  templateId  String
+  template    OmrTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  omrImageUrl String
+  score       Int
+  total       Int
+  answers     Json // Student's marked options
+  createdAt   DateTime    @default(now())
 }

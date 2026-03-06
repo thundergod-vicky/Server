@@ -25,6 +25,7 @@ const _progressmodule = require("./progress/progress.module");
 const _adminmodule = require("./admin/admin.module");
 const _batchesmodule = require("./batches/batches.module");
 const _publicmodule = require("./public/public.module");
+const _omrmodule = require("./omr/omr.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -49,7 +50,8 @@ AppModule = _ts_decorate([
             _progressmodule.ProgressModule,
             _adminmodule.AdminModule,
             _batchesmodule.BatchesModule,
-            _publicmodule.PublicModule
+            _publicmodule.PublicModule,
+            _omrmodule.OmrModule
         ],
         controllers: [
             _appcontroller.AppController
