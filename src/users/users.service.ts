@@ -47,9 +47,10 @@ export class UsersService {
       },
     });
 
-    if (user && (!user.profileSlug || !user.profileSettings)) {
+    if (user && (!user.profileSlug || !user.profileSettings || !user.enrollmentId)) {
       const updateData: any = {};
       if (!user.profileSlug) updateData.profileSlug = crypto.randomUUID();
+      if (!user.enrollmentId) updateData.enrollmentId = await this.generateEnrollmentId(user.role);
       if (!user.profileSettings) {
         updateData.profileSettings = {
           showMedals: true,
@@ -72,6 +73,7 @@ export class UsersService {
                   email: true,
                   grade: true,
                   medal: true,
+                  enrollmentId: true,
                   profileSlug: true,
                 },
               },
@@ -147,10 +149,14 @@ export class UsersService {
       },
     });
 
-    if (user && !user.profileSlug) {
+    if (user && (!user.profileSlug || !user.enrollmentId)) {
+      const updateData: any = {};
+      if (!user.profileSlug) updateData.profileSlug = crypto.randomUUID();
+      if (!user.enrollmentId) updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+
       return this.prisma.user.update({
         where: { id: user.id },
-        data: { profileSlug: crypto.randomUUID() },
+        data: updateData,
         include: {
           assignedByTeacher: { select: { name: true } },
           parentOf: {
@@ -311,6 +317,7 @@ export class UsersService {
                 email: true,
                 grade: true,
                 medal: true,
+                enrollmentId: true,
                 profileSlug: true,
               },
             },

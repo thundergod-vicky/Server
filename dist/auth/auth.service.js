@@ -98,6 +98,8 @@ let AuthService = class AuthService {
                 profileSlug: u.profileSlug,
                 profileSettings: u.profileSettings,
                 profileImage: u.profileImage,
+                enrollmentId: u.enrollmentId,
+                phone: u.phone,
                 parentOf: u.parentOf,
                 parentRequests: u.parentRequests
             }

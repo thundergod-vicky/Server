@@ -58,6 +58,8 @@ export class AuthService {
         profileSlug: u.profileSlug,
         profileSettings: u.profileSettings,
         profileImage: u.profileImage,
+        enrollmentId: (u as any).enrollmentId,
+        phone: (u as any).phone,
         parentOf: u.parentOf,
         parentRequests: u.parentRequests,
       },
