@@ -85,6 +85,18 @@ let AdminService = class AdminService {
             }
         });
     }
+    async updateUser(userId, data) {
+        // Sanitize enrollmentId if present
+        if (data.enrollmentId && typeof data.enrollmentId === 'string') {
+            data.enrollmentId = data.enrollmentId.replace(/\s+/g, '');
+        }
+        return this.prisma.user.update({
+            where: {
+                id: userId
+            },
+            data
+        });
+    }
     async getAllCourses() {
         return this.prisma.course.findMany({
             include: {

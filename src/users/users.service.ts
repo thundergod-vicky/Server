@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { User, Prisma } from '@prisma/client';
+import { User, Prisma, Role } from '@prisma/client';
 
 @Injectable()
 export class UsersService {
@@ -111,6 +111,7 @@ export class UsersService {
                 email: true,
                 grade: true,
                 medal: true,
+                enrollmentId: true,
                 profileSlug: true,
               },
             },
@@ -161,6 +162,7 @@ export class UsersService {
                   email: true,
                   grade: true,
                   medal: true,
+                  enrollmentId: true,
                   profileSlug: true,
                 },
               },
@@ -208,6 +210,7 @@ export class UsersService {
         email: true,
         medal: true,
         grade: true,
+        enrollmentId: true,
         academicAssignedAt: true,
         assignedByTeacher: { select: { name: true } },
         _count: {
@@ -244,12 +247,38 @@ export class UsersService {
     return `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}`;
   }
 
+  private async generateEnrollmentId(role: Role): Promise<string> {
+    const prefixMap = {
+      [Role.TEACHER]: 'TEAC',
+      [Role.STUDENT]: 'STUD',
+      [Role.PARENT]: 'PARE',
+      [Role.ADMIN]: 'ADMI',
+    };
+
+    const prefix = prefixMap[role] || 'USER';
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+
+    // Count how many users of this role ALREADY HAVE an enrollmentId
+    const count = await this.prisma.user.count({
+      where: {
+        role,
+        enrollmentId: { startsWith: prefix },
+      },
+    });
+
+    const serial = (count + 1).toString().padStart(4, '0');
+    return `${prefix}-${serial}/${currentYear}`;
+  }
+
   async create(data: Prisma.UserCreateInput): Promise<User> {
     const profileImage = data.profileImage || this.getRandomAvatar();
+    const enrollmentId = data.enrollmentId || (await this.generateEnrollmentId(data.role as Role));
+    
     return this.prisma.user.create({
       data: {
         ...data,
         profileImage,
+        enrollmentId,
       },
     });
   }
@@ -263,6 +292,11 @@ export class UsersService {
   }
 
   async update(id: string, data: Prisma.UserUpdateInput): Promise<User | null> {
+    // If enrollmentId is being updated, validate no spaces
+    if (data.enrollmentId && typeof data.enrollmentId === 'string') {
+      data.enrollmentId = data.enrollmentId.replace(/\s+/g, '');
+    }
+
     return this.prisma.user.update({
       where: { id },
       data,

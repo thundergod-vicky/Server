@@ -45,6 +45,10 @@ let AdminController = class AdminController {
         this.checkAdmin(req);
         return this.adminService.updateUserRole(userId, data.role);
     }
+    async updateUser(userId, data, req) {
+        this.checkAdmin(req);
+        return this.adminService.updateUser(userId, data);
+    }
     async getCourses(req) {
         this.checkAdmin(req);
         return this.adminService.getAllCourses();
@@ -122,6 +126,22 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AdminController.prototype, "updateRole", null);
+_ts_decorate([
+    (0, _common.Patch)('users/:id'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Update user profile'
+    }),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_param(1, (0, _common.Body)()),
+    _ts_param(2, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String,
+        Object,
+        Object
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdminController.prototype, "updateUser", null);
 _ts_decorate([
     (0, _common.Get)('courses'),
     (0, _swagger.ApiOperation)({

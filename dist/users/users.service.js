@@ -12,6 +12,7 @@ const _common = require("@nestjs/common");
 const _crypto = /*#__PURE__*/ _interop_require_wildcard(require("crypto"));
 const _prismaservice = require("../prisma/prisma.service");
 const _notificationsservice = require("../notifications/notifications.service");
+const _client = require("@prisma/client");
 function _getRequireWildcardCache(nodeInterop) {
     if (typeof WeakMap !== "function") return null;
     var cacheBabelInterop = new WeakMap();
@@ -183,6 +184,7 @@ let UsersService = class UsersService {
                                 email: true,
                                 grade: true,
                                 medal: true,
+                                enrollmentId: true,
                                 profileSlug: true
                             }
                         }
@@ -253,6 +255,7 @@ let UsersService = class UsersService {
                                     email: true,
                                     grade: true,
                                     medal: true,
+                                    enrollmentId: true,
                                     profileSlug: true
                                 }
                             }
@@ -314,6 +317,7 @@ let UsersService = class UsersService {
                 email: true,
                 medal: true,
                 grade: true,
+                enrollmentId: true,
                 academicAssignedAt: true,
                 assignedByTeacher: {
                     select: {
@@ -361,12 +365,35 @@ let UsersService = class UsersService {
         const randomSeed = _crypto.randomBytes(8).toString('hex');
         return `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}`;
     }
+    async generateEnrollmentId(role) {
+        const prefixMap = {
+            [_client.Role.TEACHER]: 'TEAC',
+            [_client.Role.STUDENT]: 'STUD',
+            [_client.Role.PARENT]: 'PARE',
+            [_client.Role.ADMIN]: 'ADMI'
+        };
+        const prefix = prefixMap[role] || 'USER';
+        const currentYear = new Date().getFullYear().toString().slice(-2);
+        // Count how many users of this role ALREADY HAVE an enrollmentId
+        const count = await this.prisma.user.count({
+            where: {
+                role,
+                enrollmentId: {
+                    startsWith: prefix
+                }
+            }
+        });
+        const serial = (count + 1).toString().padStart(4, '0');
+        return `${prefix}-${serial}/${currentYear}`;
+    }
     async create(data) {
         const profileImage = data.profileImage || this.getRandomAvatar();
+        const enrollmentId = data.enrollmentId || await this.generateEnrollmentId(data.role);
         return this.prisma.user.create({
             data: {
                 ...data,
-                profileImage
+                profileImage,
+                enrollmentId
             }
         });
     }
@@ -382,6 +409,10 @@ let UsersService = class UsersService {
         });
     }
     async update(id, data) {
+        // If enrollmentId is being updated, validate no spaces
+        if (data.enrollmentId && typeof data.enrollmentId === 'string') {
+            data.enrollmentId = data.enrollmentId.replace(/\s+/g, '');
+        }
         return this.prisma.user.update({
             where: {
                 id

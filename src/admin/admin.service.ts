@@ -1,4 +1,5 @@
-import { Injectable, ForbiddenException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Injectable()
@@ -55,10 +56,21 @@ export class AdminService {
     });
   }
 
-  async updateUserRole(userId: string, role: any) {
+  async updateUserRole(userId: string, role: Role) {
     return this.prisma.user.update({
       where: { id: userId },
       data: { role },
+    });
+  }
+
+  async updateUser(userId: string, data: Prisma.UserUpdateInput) {
+    // Sanitize enrollmentId if present
+    if (data.enrollmentId && typeof data.enrollmentId === 'string') {
+      data.enrollmentId = data.enrollmentId.replace(/\s+/g, '');
+    }
+    return this.prisma.user.update({
+      where: { id: userId },
+      data,
     });
   }
 

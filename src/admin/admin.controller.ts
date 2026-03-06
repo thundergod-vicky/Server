@@ -61,6 +61,17 @@ export class AdminController {
     return this.adminService.updateUserRole(userId, data.role as any);
   }
 
+  @Patch('users/:id')
+  @ApiOperation({ summary: 'Update user profile' })
+  async updateUser(
+    @Param('id') userId: string,
+    @Body() data: any,
+    @Request() req: any,
+  ) {
+    this.checkAdmin(req);
+    return this.adminService.updateUser(userId, data);
+  }
+
   @Get('courses')
   @ApiOperation({ summary: 'Get all courses' })
   async getCourses(@Request() req) {

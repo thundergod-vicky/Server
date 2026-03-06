@@ -9,6 +9,7 @@ Object.defineProperty(exports, "UpdateProfileDto", {
     }
 });
 const _swagger = require("@nestjs/swagger");
+const _classvalidator = require("class-validator");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -46,8 +47,28 @@ _ts_decorate([
         example: 'https://avatar.url',
         description: 'Avatar URL'
     }),
+    (0, _classvalidator.IsOptional)(),
+    (0, _classvalidator.IsString)(),
     _ts_metadata("design:type", String)
 ], UpdateProfileDto.prototype, "avatar", void 0);
+_ts_decorate([
+    (0, _swagger.ApiPropertyOptional)({
+        example: '+1234567890',
+        description: 'User phone number'
+    }),
+    (0, _classvalidator.IsOptional)(),
+    (0, _classvalidator.IsString)(),
+    _ts_metadata("design:type", String)
+], UpdateProfileDto.prototype, "phone", void 0);
+_ts_decorate([
+    (0, _swagger.ApiPropertyOptional)({
+        example: 'STUD-0001/26',
+        description: 'Unique Enrollment ID'
+    }),
+    (0, _classvalidator.IsOptional)(),
+    (0, _classvalidator.IsString)(),
+    _ts_metadata("design:type", String)
+], UpdateProfileDto.prototype, "enrollmentId", void 0);
 _ts_decorate([
     (0, _swagger.ApiPropertyOptional)({
         example: 'A_PLUS',

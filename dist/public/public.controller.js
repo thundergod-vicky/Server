@@ -36,6 +36,7 @@ let PublicController = class PublicController {
                 name: true,
                 medal: true,
                 grade: true,
+                enrollmentId: true,
                 academicAssignedAt: true,
                 profileSettings: true,
                 profileImage: true,
@@ -83,6 +84,7 @@ let PublicController = class PublicController {
         return {
             id: student.id,
             name: student.name,
+            enrollmentId: student.enrollmentId,
             profileSettings: student.profileSettings,
             medal: settings.showMedals ? student.medal : null,
             grade: settings.showGrades ? student.grade : null,
