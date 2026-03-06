@@ -1,7 +1,7 @@
-import { Injectable, InternalServerErrorException, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../content/s3.service';
-import * as sharp from 'sharp';
+import sharp from 'sharp';
 
 @Injectable()
 export class OmrService {
@@ -51,10 +51,10 @@ export class OmrService {
       const uploadResult = await this.s3Service.uploadFile(file);
 
       // 2. Analyze against template
-      const analysis = await this.analyzeOmr(file.buffer, template.answers as any);
+      const analysis = this.analyzeOmr(file.buffer, template.answers as any);
 
       // 3. Save result to DB
-      const result = await (this.prisma.omrResult.create as any)({
+      const result = await this.prisma.omrResult.create({
         data: {
           templateId,
           omrImageUrl: uploadResult.webViewLink,
@@ -93,12 +93,12 @@ export class OmrService {
     // Placeholder logic for detecting marked options:
     // We'll return a mock set of correct answers for now, 
     // but the final version should actually process the image.
-    const questions = [];
+    const questions: { number: number; answer: string }[] = [];
     for (let i = 1; i <= 20; i++) {
-        questions.push({
-            number: i,
-            answer: String.fromCharCode(65 + Math.floor(Math.random() * 4)) // Random A-D
-        });
+      questions.push({
+        number: i,
+        answer: String.fromCharCode(65 + Math.floor(Math.random() * 4)), // Random A-D
+      });
     }
     return questions;
   }
@@ -106,26 +106,25 @@ export class OmrService {
   /**
    * Stub for OMR analysis.
    */
-  private async analyzeOmr(buffer: Buffer, correctAnswers: any[]) {
-    // Placeholder logic:
+  private analyzeOmr(buffer: Buffer, correctAnswers: { number: number; answer: string }[]) {
     let score = 0;
-    const studentAnswers = [];
-    
+    const studentAnswers: { number: number; answer: string }[] = [];
+
     for (const q of correctAnswers) {
-        const studentChoice = String.fromCharCode(65 + Math.floor(Math.random() * 4));
-        if (studentChoice === q.answer) {
-            score++;
-        }
-        studentAnswers.push({
-            number: q.number,
-            answer: studentChoice
-        });
+      const studentChoice = String.fromCharCode(65 + Math.floor(Math.random() * 4));
+      if (studentChoice === q.answer) {
+        score++;
+      }
+      studentAnswers.push({
+        number: q.number,
+        answer: studentChoice,
+      });
     }
 
     return {
-        score,
-        total: correctAnswers.length,
-        studentAnswers
+      score,
+      total: correctAnswers.length,
+      studentAnswers,
     };
   }
 }

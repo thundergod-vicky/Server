@@ -150,3 +150,8 @@ Error: listen EADDRINUSE: address already in use :::3002
 }
 
 Node.js v22.19.0
+Successfully compiled src/omr/omr.service.ts with swc (106.48ms)
+Successfully compiled src/omr/omr.service.ts with swc (181.36ms)
+Successfully compiled src/omr/omr.service.ts with swc (122.6ms)
+Successfully compiled src/omr/omr.service.ts with swc (225.83ms)
+Successfully compiled src/omr/omr.service.ts with swc (23.13ms)
