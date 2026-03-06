@@ -165,3 +165,56 @@ Successfully compiled src/omr/omr.service.ts with swc (211.41ms)
 Successfully compiled src/omr/omr.service.ts with swc (111.77ms)
 Successfully compiled src/omr/omr.service.ts with swc (191.99ms)
 Successfully compiled src/omr/omr.service.ts with swc (18.33ms)
+Successfully compiled src/omr/omr.service.ts with swc (76.68ms)
+Successfully compiled src/omr/omr.controller.ts with swc (82.69ms)
+Successfully compiled src/omr/omr.service.ts with swc (33.67ms)
+Successfully compiled src/omr/omr.controller.ts with swc (166ms)
+Successfully compiled src/omr/omr.service.ts with swc (168.95ms)
+Successfully compiled src/omr/omr.controller.ts with swc (122.05ms)
+Successfully compiled src/omr/omr.controller.ts with swc (54.06ms)
+Successfully compiled src/omr/omr.service.ts with swc (149.07ms)
+Successfully compiled src/omr/omr.controller.ts with swc (160.54ms)
+Successfully compiled src/omr/omr.service.ts with swc (573.85ms)
+Successfully compiled src/omr/omr.service.ts with swc (318.98ms)
+Successfully compiled src/omr/omr.controller.ts with swc (110.85ms)
+Successfully compiled src/omr/omr.controller.ts with swc (176.22ms)
+Successfully compiled src/omr/omr.service.ts with swc (502.94ms)
+Successfully compiled src/omr/omr.service.ts with swc (108.57ms)
+Successfully compiled src/omr/omr.service.ts with swc (191.64ms)
+  x Expected ';', '}' or <eof>
+     ,-[src/omr/omr.service.ts:212:1]
+ 209 |             max_tokens: 2000,
+ 210 |             temperature: 0,
+ 211 |           });
+ 212 | ,->         model: 'gpt-4o',
+ 213 | |->         messages: [
+     : `---                ^
+     : `---- This is the expression part of an expression statement
+ 214 |               {
+ 215 |                 role: 'user',
+ 216 |                 content: [
+     `----
+
+
+Caused by:
+    Syntax Error
+Successfully compiled src/omr/omr.service.ts with swc (214.49ms)
+Successfully compiled src/omr/omr.service.ts with swc (141.49ms)
+Successfully compiled src/omr/omr.controller.ts with swc (210.71ms)
+  x Expression expected
+     ,-[src/omr/omr.service.ts:245:1]
+ 242 |       }));
+ 243 |     }
+ 244 |   }
+ 245 | }
+     : ^
+     `----
+
+
+Caused by:
+    Syntax Error
+Successfully compiled src/omr/omr.service.ts with swc (167.52ms)
+Successfully compiled src/omr/omr.service.ts with swc (171.74ms)
+Successfully compiled src/omr/omr.service.ts with swc (168.45ms)
+Successfully compiled src/omr/omr.service.ts with swc (114.55ms)
+Successfully compiled src/omr/omr.service.ts with swc (16.14ms)

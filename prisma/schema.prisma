@@ -375,16 +375,17 @@ enum NotificationType {
 }
 
 model OmrTemplate {
-  id           String      @id @default(cuid())
-  name         String
-  description  String?
-  motherOmrUrl String
-  answers      Json // Correct options for each question
-  teacherId    String
-  teacher      User        @relation("TeacherOmrTemplates", fields: [teacherId], references: [id])
-  results      OmrResult[]
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
+  id             String      @id @default(cuid())
+  name           String
+  description    String?
+  motherOmrUrl   String
+  answers        Json // Correct options for each question
+  totalQuestions Int         @default(20)
+  teacherId      String
+  teacher        User        @relation("TeacherOmrTemplates", fields: [teacherId], references: [id])
+  results        OmrResult[]
+  createdAt      DateTime    @default(now())
+  updatedAt      DateTime    @updatedAt
 }
 
 model OmrResult {
