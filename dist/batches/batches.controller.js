@@ -31,8 +31,8 @@ function _ts_param(paramIndex, decorator) {
 let BatchesController = class BatchesController {
     checkAdmin(req) {
         const user = req.user;
-        if (user.role !== 'ADMIN') {
-            throw new _common.ForbiddenException('Only admins can perform this action');
+        if (user.role !== 'ADMIN' && user.role !== 'ACADEMIC_OPERATIONS') {
+            throw new _common.ForbiddenException('Only admins or academic operations can perform this action');
         }
     }
     create(createBatchDto, req) {

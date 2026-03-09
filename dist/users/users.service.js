@@ -373,20 +373,32 @@ let UsersService = class UsersService {
             [_client.Role.TEACHER]: 'TEAC',
             [_client.Role.STUDENT]: 'STUD',
             [_client.Role.PARENT]: 'PARE',
-            [_client.Role.ADMIN]: 'ADMI'
+            [_client.Role.ADMIN]: 'ADMI',
+            [_client.Role.ACADEMIC_OPERATIONS]: 'ACAD',
+            [_client.Role.ACCOUNTS]: 'ACCT'
         };
         const prefix = prefixMap[role] || 'USER';
         const currentYear = new Date().getFullYear().toString().slice(-2);
-        // Count how many users of this role ALREADY HAVE an enrollmentId
-        const count = await this.prisma.user.count({
+        // Find the highest serial for this prefix to avoid collision on delete/recreate
+        const existing = await this.prisma.user.findMany({
             where: {
-                role,
                 enrollmentId: {
                     startsWith: prefix
                 }
+            },
+            select: {
+                enrollmentId: true
             }
         });
-        const serial = (count + 1).toString().padStart(4, '0');
+        let maxSerial = 0;
+        for (const u of existing){
+            const match = u.enrollmentId?.match(/(\d{4})\//);
+            if (match) {
+                const num = parseInt(match[1], 10);
+                if (num > maxSerial) maxSerial = num;
+            }
+        }
+        const serial = (maxSerial + 1).toString().padStart(4, '0');
         return `${prefix}-${serial}/${currentYear}`;
     }
     async create(data) {
@@ -644,7 +656,24 @@ let UsersService = class UsersService {
                 id: true,
                 name: true,
                 email: true,
-                role: true
+                role: true,
+                profileImage: true,
+                createdAt: true,
+                coursesOwned: {
+                    select: {
+                        title: true
+                    },
+                    take: 1
+                },
+                batchesTaught: {
+                    select: {
+                        id: true
+                    },
+                    take: 1
+                }
+            },
+            orderBy: {
+                createdAt: 'desc'
             }
         });
     }

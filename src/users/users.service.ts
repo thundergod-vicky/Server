@@ -254,25 +254,34 @@ export class UsersService {
   }
 
   private async generateEnrollmentId(role: Role): Promise<string> {
-    const prefixMap = {
+    const prefixMap: Record<string, string> = {
       [Role.TEACHER]: 'TEAC',
       [Role.STUDENT]: 'STUD',
       [Role.PARENT]: 'PARE',
       [Role.ADMIN]: 'ADMI',
+      [Role.ACADEMIC_OPERATIONS]: 'ACAD',
+      [Role.ACCOUNTS]: 'ACCT',
     };
 
     const prefix = prefixMap[role] || 'USER';
     const currentYear = new Date().getFullYear().toString().slice(-2);
 
-    // Count how many users of this role ALREADY HAVE an enrollmentId
-    const count = await this.prisma.user.count({
-      where: {
-        role,
-        enrollmentId: { startsWith: prefix },
-      },
+    // Find the highest serial for this prefix to avoid collision on delete/recreate
+    const existing = await this.prisma.user.findMany({
+      where: { enrollmentId: { startsWith: prefix } },
+      select: { enrollmentId: true },
     });
 
-    const serial = (count + 1).toString().padStart(4, '0');
+    let maxSerial = 0;
+    for (const u of existing) {
+      const match = u.enrollmentId?.match(/(\d{4})\//);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxSerial) maxSerial = num;
+      }
+    }
+
+    const serial = (maxSerial + 1).toString().padStart(4, '0');
     return `${prefix}-${serial}/${currentYear}`;
   }
 
@@ -489,7 +498,18 @@ export class UsersService {
         name: true,
         email: true,
         role: true,
+        profileImage: true,
+        createdAt: true,
+        coursesOwned: {
+          select: { title: true },
+          take: 1,
+        },
+        batchesTaught: {
+          select: { id: true },
+          take: 1,
+        },
       },
+      orderBy: { createdAt: 'desc' },
     });
   }
 

@@ -57,10 +57,42 @@ export class AdminService {
   }
 
   async updateUserRole(userId: string, role: Role) {
+    const enrollmentId = await this.generateEnrollmentId(role);
     return this.prisma.user.update({
       where: { id: userId },
-      data: { role },
+      data: { role, enrollmentId },
     });
+  }
+
+  private async generateEnrollmentId(role: Role): Promise<string> {
+    const prefixMap: Record<string, string> = {
+      [Role.TEACHER]: 'TEAC',
+      [Role.STUDENT]: 'STUD',
+      [Role.PARENT]: 'PARE',
+      [Role.ADMIN]: 'ADMI',
+      [Role.ACADEMIC_OPERATIONS]: 'ACAD',
+      [Role.ACCOUNTS]: 'ACCT',
+    };
+
+    const prefix = prefixMap[role] ?? 'USER';
+    const currentYear = new Date().getFullYear().toString().slice(-2);
+
+    const existing = await this.prisma.user.findMany({
+      where: { enrollmentId: { startsWith: prefix }, id: { not: '' } },
+      select: { enrollmentId: true },
+    });
+
+    let maxSerial = 0;
+    for (const u of existing) {
+      const match = u.enrollmentId?.match(/(\d{4})\//);
+      if (match) {
+        const num = parseInt(match[1], 10);
+        if (num > maxSerial) maxSerial = num;
+      }
+    }
+
+    const serial = (maxSerial + 1).toString().padStart(4, '0');
+    return `${prefix}-${serial}/${currentYear}`;
   }
 
   async updateUser(userId: string, data: Prisma.UserUpdateInput) {

@@ -17,6 +17,8 @@ enum Role {
   TEACHER
   ADMIN
   PARENT
+  ACADEMIC_OPERATIONS
+  ACCOUNTS
 }
 
 enum AcademicMedal {

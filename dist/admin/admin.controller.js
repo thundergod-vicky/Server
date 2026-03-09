@@ -29,7 +29,8 @@ function _ts_param(paramIndex, decorator) {
 let AdminController = class AdminController {
     checkAdmin(req) {
         // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-        if (req.user.role !== 'ADMIN') {
+        const role = req.user.role;
+        if (role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
             throw new _common.ForbiddenException('Ask For permission');
         }
     }

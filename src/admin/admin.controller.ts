@@ -29,7 +29,8 @@ export class AdminController {
 
   private checkAdmin(req: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    if (req.user.role !== 'ADMIN') {
+    const role = req.user.role;
+    if (role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
       throw new ForbiddenException('Ask For permission');
     }
   }

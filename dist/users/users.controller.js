@@ -110,8 +110,8 @@ let UsersController = class UsersController {
         const userId = req.user.userId || req.user.id || req.user.sub;
         if (!userId) throw new _common.ForbiddenException('User ID not found');
         const role = req.user.role || (await this.usersService.findById(userId))?.role;
-        if (role !== 'TEACHER' && role !== 'ADMIN') {
-            throw new _common.ForbiddenException('Only teachers or admins can view all students');
+        if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
+            throw new _common.ForbiddenException('Only staff or admins can view all students');
         }
         return this.usersService.findAllStudents();
     }
@@ -120,9 +120,9 @@ let UsersController = class UsersController {
         if (!userId) throw new _common.ForbiddenException('User ID not found');
         const user = await this.usersService.findById(userId);
         const role = user?.role || req.user.role;
-        if (role !== 'TEACHER' && role !== 'ADMIN') {
+        if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS') {
             console.log(`Access denied for user ${userId} with role ${role}`);
-            throw new _common.ForbiddenException('Only teachers or admins can update student academic status');
+            throw new _common.ForbiddenException('Only teachers, admins, or academic operations can update student academic status');
         }
         return this.usersService.updateAcademicStatus(studentId, userId, data);
     }
@@ -155,8 +155,8 @@ let UsersController = class UsersController {
         const userId = req.user.userId || req.user.id || req.user.sub;
         if (!userId) throw new _common.ForbiddenException('User ID not found');
         const role = req.user.role || (await this.usersService.findById(userId))?.role;
-        if (role !== 'TEACHER' && role !== 'ADMIN') {
-            throw new _common.ForbiddenException('Only teachers or admins can view parents');
+        if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
+            throw new _common.ForbiddenException('Only staff or admins can view parents');
         }
         return this.usersService.findAllParents();
     }
