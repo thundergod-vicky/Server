@@ -47,10 +47,16 @@ export class UsersService {
       },
     });
 
-    if (user && (!user.profileSlug || !user.profileSettings || !user.enrollmentId)) {
+    if (
+      user &&
+      !user.isManual &&
+      (!user.profileSlug || !user.profileSettings || !user.enrollmentId)
+    ) {
       const updateData: any = {};
       if (!user.profileSlug) updateData.profileSlug = crypto.randomUUID();
-      if (!user.enrollmentId) updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+      if (!user.enrollmentId) {
+        updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+      }
       if (!user.profileSettings) {
         updateData.profileSettings = {
           showMedals: true,
@@ -149,10 +155,12 @@ export class UsersService {
       },
     });
 
-    if (user && (!user.profileSlug || !user.enrollmentId)) {
+    if (user && !user.isManual && (!user.profileSlug || !user.enrollmentId)) {
       const updateData: any = {};
       if (!user.profileSlug) updateData.profileSlug = crypto.randomUUID();
-      if (!user.enrollmentId) updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+      if (!user.enrollmentId) {
+        updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+      }
 
       return this.prisma.user.update({
         where: { id: user.id },
@@ -209,7 +217,10 @@ export class UsersService {
 
   async findAllStudents() {
     return await this.prisma.user.findMany({
-      where: { role: 'STUDENT' },
+      where: {
+        role: 'STUDENT',
+        isManual: { not: true },
+      },
       select: {
         id: true,
         name: true,
@@ -247,7 +258,13 @@ export class UsersService {
   }
 
   private getRandomAvatar(): string {
-    const styles = ['fun-emoji', 'bottts', 'pixel-art', 'adventurer', 'notionists'];
+    const styles = [
+      'fun-emoji',
+      'bottts',
+      'pixel-art',
+      'adventurer',
+      'notionists',
+    ];
     const randomStyle = styles[Math.floor(Math.random() * styles.length)];
     const randomSeed = crypto.randomBytes(8).toString('hex');
     return `https://api.dicebear.com/7.x/${randomStyle}/svg?seed=${randomSeed}`;
@@ -287,7 +304,11 @@ export class UsersService {
 
   async create(data: Prisma.UserCreateInput): Promise<User> {
     const profileImage = data.profileImage || this.getRandomAvatar();
-    const enrollmentId = data.enrollmentId || (await this.generateEnrollmentId(data.role as Role));
+    
+    // Skip enrollment ID generation if it's a manual record
+    const enrollmentId = data.isManual 
+      ? data.enrollmentId || null 
+      : data.enrollmentId || (await this.generateEnrollmentId(data.role as Role));
     
     return this.prisma.user.create({
       data: {

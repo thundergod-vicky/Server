@@ -107,10 +107,12 @@ let UsersService = class UsersService {
                 }
             }
         });
-        if (user && (!user.profileSlug || !user.profileSettings || !user.enrollmentId)) {
+        if (user && !user.isManual && (!user.profileSlug || !user.profileSettings || !user.enrollmentId)) {
             const updateData = {};
             if (!user.profileSlug) updateData.profileSlug = _crypto.randomUUID();
-            if (!user.enrollmentId) updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+            if (!user.enrollmentId) {
+                updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+            }
             if (!user.profileSettings) {
                 updateData.profileSettings = {
                     showMedals: true,
@@ -234,10 +236,12 @@ let UsersService = class UsersService {
                 }
             }
         });
-        if (user && (!user.profileSlug || !user.enrollmentId)) {
+        if (user && !user.isManual && (!user.profileSlug || !user.enrollmentId)) {
             const updateData = {};
             if (!user.profileSlug) updateData.profileSlug = _crypto.randomUUID();
-            if (!user.enrollmentId) updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+            if (!user.enrollmentId) {
+                updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+            }
             return this.prisma.user.update({
                 where: {
                     id: user.id
@@ -312,7 +316,10 @@ let UsersService = class UsersService {
     async findAllStudents() {
         return await this.prisma.user.findMany({
             where: {
-                role: 'STUDENT'
+                role: 'STUDENT',
+                isManual: {
+                    not: true
+                }
             },
             select: {
                 id: true,
@@ -403,7 +410,8 @@ let UsersService = class UsersService {
     }
     async create(data) {
         const profileImage = data.profileImage || this.getRandomAvatar();
-        const enrollmentId = data.enrollmentId || await this.generateEnrollmentId(data.role);
+        // Skip enrollment ID generation if it's a manual record
+        const enrollmentId = data.isManual ? data.enrollmentId || null : data.enrollmentId || await this.generateEnrollmentId(data.role);
         return this.prisma.user.create({
             data: {
                 ...data,
