@@ -27,6 +27,7 @@ const _batchesmodule = require("./batches/batches.module");
 const _publicmodule = require("./public/public.module");
 const _omrmodule = require("./omr/omr.module");
 const _classsessionsmodule = require("./class-sessions/class-sessions.module");
+const _zoommodule = require("./zoom/zoom.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -53,7 +54,8 @@ AppModule = _ts_decorate([
             _batchesmodule.BatchesModule,
             _publicmodule.PublicModule,
             _omrmodule.OmrModule,
-            _classsessionsmodule.ClassSessionsModule
+            _classsessionsmodule.ClassSessionsModule,
+            _zoommodule.ZoomModule
         ],
         controllers: [
             _appcontroller.AppController

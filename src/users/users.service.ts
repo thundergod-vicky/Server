@@ -304,12 +304,10 @@ export class UsersService {
 
   async create(data: Prisma.UserCreateInput): Promise<User> {
     const profileImage = data.profileImage || this.getRandomAvatar();
-    
     // Skip enrollment ID generation if it's a manual record
     const enrollmentId = data.isManual 
       ? data.enrollmentId || null 
       : data.enrollmentId || (await this.generateEnrollmentId(data.role as Role));
-    
     return this.prisma.user.create({
       data: {
         ...data,

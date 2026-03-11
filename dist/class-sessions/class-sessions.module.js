@@ -13,6 +13,7 @@ const _classsessionscontroller = require("./class-sessions.controller");
 const _classsessionsservice = require("./class-sessions.service");
 const _prismamodule = require("../prisma/prisma.module");
 const _notificationsmodule = require("../notifications/notifications.module");
+const _zoommodule = require("../zoom/zoom.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -25,7 +26,8 @@ ClassSessionsModule = _ts_decorate([
     (0, _common.Module)({
         imports: [
             _prismamodule.PrismaModule,
-            _notificationsmodule.NotificationsModule
+            _notificationsmodule.NotificationsModule,
+            _zoommodule.ZoomModule
         ],
         controllers: [
             _classsessionscontroller.ClassSessionsController

@@ -31,6 +31,7 @@ export class ClassSessionsController {
     startTime: string;
     endTime: string;
     venue?: string;
+    isOnline?: boolean;
   }) {
     return this.service.create(body);
   }

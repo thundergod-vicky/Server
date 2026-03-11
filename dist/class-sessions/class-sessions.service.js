@@ -11,6 +11,7 @@ Object.defineProperty(exports, "ClassSessionsService", {
 const _common = require("@nestjs/common");
 const _prismaservice = require("../prisma/prisma.service");
 const _notificationsservice = require("../notifications/notifications.service");
+const _zoomservice = require("../zoom/zoom.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -22,6 +23,21 @@ function _ts_metadata(k, v) {
 }
 let ClassSessionsService = class ClassSessionsService {
     async create(data) {
+        let meetingUrl = null;
+        let meetingId = null;
+        if (data.isOnline) {
+            const start = new Date(`${data.date.split('T')[0]}T${data.startTime}:00`);
+            const end = new Date(`${data.date.split('T')[0]}T${data.endTime}:00`);
+            const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60000));
+            try {
+                const meeting = await this.zoomService.createMeeting(data.title, start.toISOString(), duration);
+                meetingUrl = meeting.joinUrl;
+                meetingId = meeting.meetingId;
+            } catch (err) {
+                // Fallback or ignore if zoom fails, just create an offline class, or log it
+                console.error('Failed to create zoom meeting for class session', err);
+            }
+        }
         const session = await this.prisma.classSession.create({
             data: {
                 title: data.title,
@@ -31,7 +47,10 @@ let ClassSessionsService = class ClassSessionsService {
                 date: new Date(data.date),
                 startTime: data.startTime,
                 endTime: data.endTime,
-                venue: data.venue
+                venue: data.venue,
+                isOnline: data.isOnline || false,
+                meetingUrl: meetingUrl,
+                meetingId: meetingId
             },
             include: {
                 teacher: {
@@ -55,7 +74,7 @@ let ClassSessionsService = class ClassSessionsService {
         await this.notifications.create(session.teacher.id, `New Class Scheduled`, `You have a new ${session.type.toLowerCase()} session: "${session.title}" on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.`, 'INFO');
         // Send notification to all students in the batch
         for (const student of session.batch.students){
-            await this.notifications.create(student.id, `New Class Scheduled`, `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.`, 'INFO');
+            await this.notifications.create(student.id, `New Class Scheduled`, `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.${session.isOnline ? ' This is an online session. Join Link is available in the schedule.' : ''}`, 'INFO');
         }
         return session;
     }
@@ -183,9 +202,10 @@ let ClassSessionsService = class ClassSessionsService {
             }
         });
     }
-    constructor(prisma, notifications){
+    constructor(prisma, notifications, zoomService){
         this.prisma = prisma;
         this.notifications = notifications;
+        this.zoomService = zoomService;
     }
 };
 ClassSessionsService = _ts_decorate([
@@ -193,7 +213,8 @@ ClassSessionsService = _ts_decorate([
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
         typeof _prismaservice.PrismaService === "undefined" ? Object : _prismaservice.PrismaService,
-        typeof _notificationsservice.NotificationsService === "undefined" ? Object : _notificationsservice.NotificationsService
+        typeof _notificationsservice.NotificationsService === "undefined" ? Object : _notificationsservice.NotificationsService,
+        typeof _zoomservice.ZoomService === "undefined" ? Object : _zoomservice.ZoomService
     ])
 ], ClassSessionsService);
 

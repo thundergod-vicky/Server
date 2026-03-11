@@ -17,6 +17,7 @@ import { BatchesModule } from './batches/batches.module';
 import { PublicModule } from './public/public.module';
 import { OmrModule } from './omr/omr.module';
 import { ClassSessionsModule } from './class-sessions/class-sessions.module';
+import { ZoomModule } from './zoom/zoom.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { ClassSessionsModule } from './class-sessions/class-sessions.module';
     PublicModule,
     OmrModule,
     ClassSessionsModule,
+    ZoomModule,
   ],
   controllers: [AppController],
   providers: [AppService],

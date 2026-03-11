@@ -1,12 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
+import { ZoomService } from '../zoom/zoom.service';
 
 @Injectable()
 export class ClassSessionsService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
+    private zoomService: ZoomService,
   ) {}
 
   async create(data: {
@@ -18,7 +20,26 @@ export class ClassSessionsService {
     startTime: string;
     endTime: string;
     venue?: string;
+    isOnline?: boolean;
   }) {
+    let meetingUrl: string | null = null;
+    let meetingId: string | null = null;
+
+    if (data.isOnline) {
+      const start = new Date(`${data.date.split('T')[0]}T${data.startTime}:00`);
+      const end = new Date(`${data.date.split('T')[0]}T${data.endTime}:00`);
+      const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60000));
+      
+      try {
+        const meeting = await this.zoomService.createMeeting(data.title, start.toISOString(), duration);
+        meetingUrl = meeting.joinUrl;
+        meetingId = meeting.meetingId;
+      } catch (err) {
+        // Fallback or ignore if zoom fails, just create an offline class, or log it
+        console.error('Failed to create zoom meeting for class session', err);
+      }
+    }
+
     const session = await this.prisma.classSession.create({
       data: {
         title: data.title,
@@ -29,6 +50,9 @@ export class ClassSessionsService {
         startTime: data.startTime,
         endTime: data.endTime,
         venue: data.venue,
+        isOnline: data.isOnline || false,
+        meetingUrl: meetingUrl,
+        meetingId: meetingId,
       },
       include: {
         teacher: { select: { id: true, name: true } },
@@ -49,7 +73,7 @@ export class ClassSessionsService {
       await this.notifications.create(
         student.id,
         `New Class Scheduled`,
-        `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.`,
+        `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.${session.isOnline ? ' This is an online session. Join Link is available in the schedule.' : ''}`,
         'INFO',
       );
     }
