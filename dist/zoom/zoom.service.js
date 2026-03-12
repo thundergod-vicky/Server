@@ -9,6 +9,7 @@ Object.defineProperty(exports, "ZoomService", {
     }
 });
 const _common = require("@nestjs/common");
+const _crypto = require("crypto");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -16,92 +17,41 @@ function _ts_decorate(decorators, target, key, desc) {
     return c > 3 && r && Object.defineProperty(target, key, r), r;
 }
 let ZoomService = class ZoomService {
-    async getAccessToken() {
-        const now = Date.now();
-        // Refresh token if it's expired or expires in less than 5 minutes (300000ms)
-        if (this.accessToken && this.tokenExpiresAt > now + 300000) {
-            return this.accessToken;
+    generateSignature(meetingNumber, role) {
+        if (!this.sdkKey || !this.sdkSecret) {
+            throw new Error('Zoom SDK credentials (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET) are not configured.');
         }
-        try {
-            const auth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString('base64');
-            const response = await fetch(`https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${this.accountId}`, {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Basic ${auth}`,
-                    'Content-Type': 'application/x-www-form-urlencoded'
-                }
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                this.logger.error(`Failed to get Zoom access token: ${response.status} ${errorText}`);
-                throw new Error(`Zoom auth failed: ${response.statusText}`);
-            }
-            const data = await response.json();
-            this.accessToken = data.access_token;
-            // expires_in is usually 3599 seconds
-            this.tokenExpiresAt = now + data.expires_in * 1000;
-            this.logger.log('Successfully fetched Zoom access token');
-            return this.accessToken || '';
-        } catch (error) {
-            this.logger.error('Error in Zoom getAccessToken', error);
-            throw error;
-        }
+        const iat = Math.round(new Date().getTime() / 1000) - 30;
+        const exp = iat + 60 * 60 * 2;
+        // Zoom Meeting SDK JWT payload (v5+ spec)
+        const payload = {
+            appKey: this.sdkKey,
+            sdkKey: this.sdkKey,
+            mn: meetingNumber,
+            role: role,
+            iat: iat,
+            exp: exp,
+            tokenExp: exp
+        };
+        const header = {
+            alg: 'HS256',
+            typ: 'JWT'
+        };
+        const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
+        const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
+        const signingInput = `${encodedHeader}.${encodedPayload}`;
+        const signature = (0, _crypto.createHmac)('sha256', this.sdkSecret).update(signingInput).digest('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
+        const jwt = `${signingInput}.${signature}`;
+        console.log(`[ZoomService] Generated JWT for meeting ${meetingNumber} (role ${role}), sdkKey: ${this.sdkKey}`);
+        return jwt;
     }
-    /**
-   * Creates a Zoom Meeting
-   * @param topic Topic of the meeting
-   * @param startTime Start time in ISO 8601 format (e.g. 2026-03-12T10:00:00Z)
-   * @param duration Duration in minutes
-   * @returns Meeting link and id
-   */ async createMeeting(topic, startTime, duration) {
-        try {
-            const token = await this.getAccessToken();
-            const payload = {
-                topic: topic,
-                type: 2,
-                start_time: startTime,
-                duration: duration,
-                timezone: 'Asia/Kolkata',
-                settings: {
-                    host_video: true,
-                    participant_video: false,
-                    join_before_host: true,
-                    mute_upon_entry: true,
-                    auto_recording: 'cloud',
-                    waiting_room: false
-                }
-            };
-            const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
-                method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${token}`,
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(payload)
-            });
-            if (!response.ok) {
-                const errorText = await response.text();
-                this.logger.error(`Failed to create Zoom meeting: ${response.status} ${errorText}`);
-                throw new Error(`Failed to create Zoom meeting`);
-            }
-            const data = await response.json();
-            return {
-                joinUrl: data.join_url,
-                meetingId: data.id.toString()
-            };
-        } catch (error) {
-            this.logger.error('Error in Zoom createMeeting', error);
-            throw error;
-        }
+    base64UrlEncode(str) {
+        return Buffer.from(str).toString('base64').replace(/\+/g, '-').replace(/\//g, '_').replace(/=/g, '');
     }
     constructor(){
-        this.logger = new _common.Logger(ZoomService.name);
-        // Consider moving these to .env for production
-        this.accountId = process.env.ZOOM_ACCOUNT_ID || 'jAmPmQpQTfymhq0ygnH3Lw';
-        this.clientId = process.env.ZOOM_CLIENT_ID || '9bUWN0_FRoGih7zLKsuSSg';
-        this.clientSecret = process.env.ZOOM_CLIENT_SECRET || '1yqq3P14JqXpZ1SK2VxljQ9Qw119XZ3D';
-        this.accessToken = null;
-        this.tokenExpiresAt = 0;
+        // For Zoom General Apps: Client ID = SDK Key, Client Secret = SDK Secret
+        this.sdkKey = process.env.ZOOM_CLIENT_ID || '';
+        this.sdkSecret = process.env.ZOOM_CLIENT_SECRET || '';
     }
 };
 ZoomService = _ts_decorate([
