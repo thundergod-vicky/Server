@@ -38,6 +38,10 @@ let AdminController = class AdminController {
         this.checkAdmin(req);
         return this.adminService.getGlobalStats();
     }
+    async getAcademicStats(req) {
+        this.checkAdmin(req);
+        return this.adminService.getAcademicStats();
+    }
     async getUsers(req) {
         this.checkAdmin(req);
         return this.adminService.getAllUsers();
@@ -99,6 +103,18 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AdminController.prototype, "getStats", null);
+_ts_decorate([
+    (0, _common.Get)('academic/stats'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Get academic operations stats'
+    }),
+    _ts_param(0, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        void 0
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdminController.prototype, "getAcademicStats", null);
 _ts_decorate([
     (0, _common.Get)('users'),
     (0, _swagger.ApiOperation)({

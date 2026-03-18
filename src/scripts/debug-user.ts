@@ -4,7 +4,7 @@ const prisma = new PrismaClient();
 async function main() {
   const email = 'tathagat.saha@gmail.com';
   console.log(`Checking user: ${email}`);
-  
+
   const user = await prisma.user.findUnique({
     where: { email },
     include: {
@@ -15,15 +15,15 @@ async function main() {
               id: true,
               name: true,
               email: true,
-              role: true
-            }
-          }
-        }
+              role: true,
+            },
+          },
+        },
       },
-      parentRequests: true
-    }
+      parentRequests: true,
+    },
   });
-  
+
   if (!user) {
     console.log('User not found');
   } else {
@@ -32,7 +32,7 @@ async function main() {
       name: user.name,
       role: user.role,
       parentOfCount: user.parentOf.length,
-      parentRequestsCount: user.parentRequests.length
+      parentRequestsCount: user.parentRequests.length,
     });
     console.log('Links:', JSON.stringify(user.parentOf, null, 2));
     console.log('Requests:', JSON.stringify(user.parentRequests, null, 2));

@@ -118,7 +118,12 @@ export class UsersController {
     const role =
       req.user.role || (await this.usersService.findById(userId))?.role;
 
-    if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
+    if (
+      role !== 'TEACHER' &&
+      role !== 'ADMIN' &&
+      role !== 'ACADEMIC_OPERATIONS' &&
+      role !== 'ACCOUNTS'
+    ) {
       throw new ForbiddenException(
         'Only staff or admins can view all students',
       );
@@ -143,7 +148,11 @@ export class UsersController {
     const user = await this.usersService.findById(userId);
     const role = user?.role || req.user.role;
 
-    if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS') {
+    if (
+      role !== 'TEACHER' &&
+      role !== 'ADMIN' &&
+      role !== 'ACADEMIC_OPERATIONS'
+    ) {
       console.log(`Access denied for user ${userId} with role ${role}`);
       throw new ForbiddenException(
         'Only teachers, admins, or academic operations can update student academic status',
@@ -232,8 +241,14 @@ export class UsersController {
     const userId = req.user.userId || req.user.id || req.user.sub;
     if (!userId) throw new ForbiddenException('User ID not found');
 
-    const role = req.user.role || (await this.usersService.findById(userId))?.role;
-    if (role !== 'TEACHER' && role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
+    const role =
+      req.user.role || (await this.usersService.findById(userId))?.role;
+    if (
+      role !== 'TEACHER' &&
+      role !== 'ADMIN' &&
+      role !== 'ACADEMIC_OPERATIONS' &&
+      role !== 'ACCOUNTS'
+    ) {
       throw new ForbiddenException('Only staff or admins can view parents');
     }
     return this.usersService.findAllParents();

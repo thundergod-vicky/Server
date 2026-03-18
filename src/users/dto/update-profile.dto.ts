@@ -25,12 +25,18 @@ export class UpdateProfileDto {
   @IsString()
   avatar?: string;
 
-  @ApiPropertyOptional({ example: '+1234567890', description: 'User phone number' })
+  @ApiPropertyOptional({
+    example: '+1234567890',
+    description: 'User phone number',
+  })
   @IsOptional()
   @IsString()
   phone?: string;
 
-  @ApiPropertyOptional({ example: 'STUD-0001/26', description: 'Unique Enrollment ID' })
+  @ApiPropertyOptional({
+    example: 'STUD-0001/26',
+    description: 'Unique Enrollment ID',
+  })
   @IsOptional()
   @IsString()
   enrollmentId?: string;

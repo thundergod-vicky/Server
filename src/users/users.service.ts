@@ -305,9 +305,10 @@ export class UsersService {
   async create(data: Prisma.UserCreateInput): Promise<User> {
     const profileImage = data.profileImage || this.getRandomAvatar();
     // Skip enrollment ID generation if it's a manual record
-    const enrollmentId = data.isManual 
-      ? data.enrollmentId || null 
-      : data.enrollmentId || (await this.generateEnrollmentId(data.role as Role));
+    const enrollmentId = data.isManual
+      ? data.enrollmentId || null
+      : data.enrollmentId ||
+        (await this.generateEnrollmentId(data.role as Role));
     return this.prisma.user.create({
       data: {
         ...data,
@@ -362,12 +363,15 @@ export class UsersService {
 
   async createParentRequest(parentId: string, studentEmail: string) {
     // Check if already linked
-    const student = await this.prisma.user.findUnique({ where: { email: studentEmail } });
+    const student = await this.prisma.user.findUnique({
+      where: { email: studentEmail },
+    });
     if (student) {
       const existingLink = await this.prisma.parentStudent.findUnique({
-        where: { parentId_studentId: { parentId, studentId: student.id } }
+        where: { parentId_studentId: { parentId, studentId: student.id } },
       });
-      if (existingLink) throw new Error('Student is already linked to your account');
+      if (existingLink)
+        throw new Error('Student is already linked to your account');
     }
 
     // Check for pending request
@@ -543,10 +547,10 @@ export class UsersService {
         parentOf: {
           include: {
             student: {
-              select: { name: true }
-            }
-          }
-        }
+              select: { name: true },
+            },
+          },
+        },
       },
     });
   }

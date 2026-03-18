@@ -32,7 +32,13 @@ export class OmrController {
     @Body('description') description?: string,
   ) {
     const totalQuestions = parseInt(totalQuestionsStr ?? '20', 10);
-    return this.omrService.createTemplate(req.user.id, file, name, totalQuestions, description);
+    return this.omrService.createTemplate(
+      req.user.id,
+      file,
+      name,
+      totalQuestions,
+      description,
+    );
   }
 
   @Get('templates')

@@ -52,12 +52,16 @@ export class PublicController {
       showTestResults: true,
     };
 
-    const enrollments = settings.showCourses 
-      ? student.enrollments.filter(e => !settings.hiddenCourseIds?.includes(e.courseId))
+    const enrollments = settings.showCourses
+      ? student.enrollments.filter(
+          (e) => !settings.hiddenCourseIds?.includes(e.courseId),
+        )
       : [];
 
     const practiceTestResults = settings.showTestResults
-      ? student.practiceTestResults.filter(r => !settings.hiddenTestResultIds?.includes(r.id))
+      ? student.practiceTestResults.filter(
+          (r) => !settings.hiddenTestResultIds?.includes(r.id),
+        )
       : [];
 
     return {
@@ -67,8 +71,14 @@ export class PublicController {
       profileSettings: student.profileSettings,
       medal: settings.showMedals ? student.medal : null,
       grade: settings.showGrades ? student.grade : null,
-      academicAssignedAt: (settings.showMedals || settings.showGrades) ? student.academicAssignedAt : null,
-      assignedByTeacher: (settings.showMedals || settings.showGrades) ? student.assignedByTeacher : null,
+      academicAssignedAt:
+        settings.showMedals || settings.showGrades
+          ? student.academicAssignedAt
+          : null,
+      assignedByTeacher:
+        settings.showMedals || settings.showGrades
+          ? student.assignedByTeacher
+          : null,
       enrollments,
       practiceTestResults,
       profileImage: student.profileImage,

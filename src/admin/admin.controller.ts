@@ -30,7 +30,11 @@ export class AdminController {
   private checkAdmin(req: any) {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
     const role = req.user.role;
-    if (role !== 'ADMIN' && role !== 'ACADEMIC_OPERATIONS' && role !== 'ACCOUNTS') {
+    if (
+      role !== 'ADMIN' &&
+      role !== 'ACADEMIC_OPERATIONS' &&
+      role !== 'ACCOUNTS'
+    ) {
       throw new ForbiddenException('Ask For permission');
     }
   }
@@ -42,6 +46,13 @@ export class AdminController {
   async getStats(@Request() req) {
     this.checkAdmin(req);
     return this.adminService.getGlobalStats();
+  }
+
+  @Get('academic/stats')
+  @ApiOperation({ summary: 'Get academic operations stats' })
+  async getAcademicStats(@Request() req) {
+    this.checkAdmin(req);
+    return this.adminService.getAcademicStats();
   }
 
   @Get('users')

@@ -20,10 +20,7 @@ export class PracticeTestsController {
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Body() createPracticeTestDto: CreatePracticeTestDto, @Request() req) {
-    return this.practiceTestsService.create(
-      req.user.id,
-      createPracticeTestDto,
-    );
+    return this.practiceTestsService.create(req.user.id, createPracticeTestDto);
   }
 
   @Get('teacher')

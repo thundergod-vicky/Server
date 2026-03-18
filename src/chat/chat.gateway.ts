@@ -29,7 +29,9 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
   async handleConnection(client: Socket) {
     try {
-      const token = client.handshake.auth.token || client.handshake.headers.authorization?.split(' ')[1];
+      const token =
+        client.handshake.auth.token ||
+        client.handshake.headers.authorization?.split(' ')[1];
       if (!token) {
         client.disconnect();
         return;
@@ -37,7 +39,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       const payload = this.jwtService.verify(token);
       client.data.user = payload;
-      
+
       // Join a room specific to this user
       await client.join(`user_${payload.sub}`);
       console.log(`User connected: ${payload.sub} (socket: ${client.id})`);
@@ -56,7 +58,13 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
   @SubscribeMessage('sendMessage')
   async handleMessage(
     @ConnectedSocket() client: Socket,
-    @MessageBody() data: { receiverId: string; message?: string; mediaUrl?: string; type: MessageType },
+    @MessageBody()
+    data: {
+      receiverId: string;
+      message?: string;
+      mediaUrl?: string;
+      type: MessageType;
+    },
   ) {
     const senderId = client.data.user.sub;
     try {
@@ -67,10 +75,10 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Emit to receiver's room
       this.server.to(`user_${data.receiverId}`).emit('newMessage', message);
-      
+
       // Emit back to sender (for multi-device sync or acknowledgment)
       this.server.to(`user_${senderId}`).emit('messageSent', message);
-      
+
       return { success: true, message };
     } catch (error) {
       return { success: false, error: error.message };
@@ -92,7 +100,7 @@ export class ChatGateway implements OnGatewayConnection, OnGatewayDisconnect {
 
       // Notify the teacher/admin
       this.server.to(`user_${data.receiverId}`).emit('newChatRequest', request);
-      
+
       return { success: true, request };
     } catch (error) {
       return { success: false, error: error.message };

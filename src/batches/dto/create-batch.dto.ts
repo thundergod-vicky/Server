@@ -6,7 +6,10 @@ export class CreateBatchDto {
   @IsString()
   name: string;
 
-  @ApiProperty({ example: 'Morning batch for class 10 math students', required: false })
+  @ApiProperty({
+    example: 'Morning batch for class 10 math students',
+    required: false,
+  })
   @IsOptional()
   @IsString()
   description?: string;

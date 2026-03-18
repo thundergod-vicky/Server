@@ -73,7 +73,7 @@ const s3Client = new _clients3.S3Client({
 async function migrate() {
     console.log('--- Starting Storage Migration (Supabase -> S3) ---');
     // List files in Supabase bucket
-    // Note: listing files in Supabase can be tricky if they are deep. 
+    // Note: listing files in Supabase can be tricky if they are deep.
     // We'll try to list recursively if possible, or iterate through folders.
     // For simplicity, we'll start with 'uploads/' folder which is common.
     const folders = [

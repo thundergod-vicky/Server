@@ -9,7 +9,9 @@ export class ZoomService {
 
   generateSignature(meetingNumber: string, role: number): string {
     if (!this.sdkKey || !this.sdkSecret) {
-      throw new Error('Zoom SDK credentials (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET) are not configured.');
+      throw new Error(
+        'Zoom SDK credentials (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET) are not configured.',
+      );
     }
 
     const iat = Math.round(new Date().getTime() / 1000) - 30;
@@ -40,7 +42,9 @@ export class ZoomService {
       .replace(/=/g, '');
 
     const jwt = `${signingInput}.${signature}`;
-    console.log(`[ZoomService] Generated JWT for meeting ${meetingNumber} (role ${role}), sdkKey: ${this.sdkKey}`);
+    console.log(
+      `[ZoomService] Generated JWT for meeting ${meetingNumber} (role ${role}), sdkKey: ${this.sdkKey}`,
+    );
     return jwt;
   }
 

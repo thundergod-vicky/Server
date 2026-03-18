@@ -59,7 +59,11 @@ export class ChatService {
     return message;
   }
 
-  async sendChatRequest(senderId: string, receiverId: string, firstMessage: string) {
+  async sendChatRequest(
+    senderId: string,
+    receiverId: string,
+    firstMessage: string,
+  ) {
     // Check if recipient is a teacher
     const receiver = await this.prisma.user.findUnique({
       where: { id: receiverId },
@@ -67,7 +71,9 @@ export class ChatService {
     });
 
     if (receiver?.role !== 'TEACHER' && receiver?.role !== 'ADMIN') {
-      throw new Error('You can only send message requests to Teachers or Admins');
+      throw new Error(
+        'You can only send message requests to Teachers or Admins',
+      );
     }
 
     const request = await this.prisma.chatRequest.create({
@@ -160,9 +166,9 @@ export class ChatService {
         profileImage: true,
         parentOf: {
           include: {
-            student: { select: { name: true } }
-          }
-        }
+            student: { select: { name: true } },
+          },
+        },
       },
     });
   }
@@ -180,12 +186,12 @@ export class ChatService {
             profileImage: true,
             parentOf: {
               include: {
-                student: { select: { name: true } }
-              }
-            }
-          }
-        }
-      }
+                student: { select: { name: true } },
+              },
+            },
+          },
+        },
+      },
     });
   }
 
@@ -200,9 +206,9 @@ export class ChatService {
             email: true,
             role: true,
             profileImage: true,
-          }
-        }
-      }
+          },
+        },
+      },
     });
   }
 }

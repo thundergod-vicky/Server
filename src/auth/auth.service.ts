@@ -34,11 +34,11 @@ export class AuthService {
       parentOf?: any[];
       parentRequests?: any[];
     };
-    
-    const payload = { 
-      email: u.email, 
-      sub: u.id, 
-      role: u.role 
+
+    const payload = {
+      email: u.email,
+      sub: u.id,
+      role: u.role,
     };
 
     // Create login history

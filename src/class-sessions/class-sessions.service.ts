@@ -28,10 +28,17 @@ export class ClassSessionsService {
     if (data.isOnline) {
       const start = new Date(`${data.date.split('T')[0]}T${data.startTime}:00`);
       const end = new Date(`${data.date.split('T')[0]}T${data.endTime}:00`);
-      const duration = Math.max(30, Math.round((end.getTime() - start.getTime()) / 60000));
-      
+      const duration = Math.max(
+        30,
+        Math.round((end.getTime() - start.getTime()) / 60000),
+      );
+
       try {
-        const meeting = await this.zoomService.createMeeting(data.title, start.toISOString(), duration);
+        const meeting = await this.zoomService.createMeeting(
+          data.title,
+          start.toISOString(),
+          duration,
+        );
         meetingUrl = meeting.joinUrl;
         meetingId = meeting.meetingId;
       } catch (err) {
@@ -81,7 +88,11 @@ export class ClassSessionsService {
     return session;
   }
 
-  async findAll(filters?: { batchId?: string; teacherId?: string; date?: string }) {
+  async findAll(filters?: {
+    batchId?: string;
+    teacherId?: string;
+    date?: string;
+  }) {
     return this.prisma.classSession.findMany({
       where: {
         ...(filters?.batchId && { batchId: filters.batchId }),

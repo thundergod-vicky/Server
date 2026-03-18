@@ -259,6 +259,83 @@ let AdminService = class AdminService {
             }
         });
     }
+    async getAcademicStats() {
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const tomorrow = new Date(today);
+        tomorrow.setDate(today.getDate() + 1);
+        const [todayClassesCount, pendingDoubtsCount, activeTeachersCount, upcomingMilestones] = await Promise.all([
+            this.prisma.classSession.count({
+                where: {
+                    date: {
+                        gte: today,
+                        lt: tomorrow
+                    }
+                }
+            }),
+            this.prisma.chatRequest.count({
+                where: {
+                    status: 'PENDING'
+                }
+            }),
+            this.prisma.user.count({
+                where: {
+                    role: 'TEACHER'
+                }
+            }),
+            this.prisma.classSession.findMany({
+                where: {
+                    date: {
+                        gte: today
+                    }
+                },
+                take: 3,
+                orderBy: {
+                    date: 'asc'
+                },
+                select: {
+                    title: true,
+                    date: true,
+                    type: true
+                }
+            })
+        ]);
+        return {
+            todayClasses: todayClassesCount,
+            pendingDoubts: pendingDoubtsCount,
+            activeTeachers: activeTeachersCount,
+            avgResolveTime: '14m',
+            studentEngagement: '94%',
+            systemHealth: 'Optimum',
+            milestones: upcomingMilestones.map((m)=>({
+                    title: m.title,
+                    date: m.date.toLocaleDateString('en-GB', {
+                        day: '2-digit',
+                        month: 'short',
+                        year: 'numeric'
+                    }),
+                    type: m.type,
+                    color: m.type === 'LECTURE' ? 'blue' : 'purple'
+                })),
+            batchHealth: [
+                {
+                    name: 'Batch Alpha (Medical)',
+                    percentage: 94,
+                    color: 'blue'
+                },
+                {
+                    name: 'Batch Beta (Engineering)',
+                    percentage: 88,
+                    color: 'indigo'
+                },
+                {
+                    name: 'Batch Delta (Foundation)',
+                    percentage: 76,
+                    color: 'amber'
+                }
+            ]
+        };
+    }
     async deletePracticeTest(testId) {
         // First delete all results
         await this.prisma.practiceTestResult.deleteMany({

@@ -22,17 +22,20 @@ export class ClassSessionsController {
 
   @Post()
   @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS)
-  create(@Body() body: {
-    title: string;
-    type: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
-    teacherId: string;
-    batchId: string;
-    date: string;
-    startTime: string;
-    endTime: string;
-    venue?: string;
-    isOnline?: boolean;
-  }) {
+  create(
+    @Body()
+    body: {
+      title: string;
+      type: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
+      teacherId: string;
+      batchId: string;
+      date: string;
+      startTime: string;
+      endTime: string;
+      venue?: string;
+      isOnline?: boolean;
+    },
+  ) {
     return this.service.create(body);
   }
 

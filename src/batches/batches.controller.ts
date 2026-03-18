@@ -26,7 +26,9 @@ export class BatchesController {
   private checkAdmin(req: any) {
     const user = req.user as { role: string };
     if (user.role !== 'ADMIN' && user.role !== 'ACADEMIC_OPERATIONS') {
-      throw new ForbiddenException('Only admins or academic operations can perform this action');
+      throw new ForbiddenException(
+        'Only admins or academic operations can perform this action',
+      );
     }
   }
 

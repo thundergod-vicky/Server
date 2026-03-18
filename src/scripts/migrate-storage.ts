@@ -15,8 +15,17 @@ const awsAccessKeyId = process.env.AWS_ACCESS_KEY_ID;
 const awsSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY;
 const awsBucketName = process.env.AWS_S3_BUCKET_NAME;
 
-if (!supabaseUrl || !supabaseKey || !awsRegion || !awsAccessKeyId || !awsSecretAccessKey || !awsBucketName) {
-  console.error('Missing required environment variables. Please check your .env file.');
+if (
+  !supabaseUrl ||
+  !supabaseKey ||
+  !awsRegion ||
+  !awsAccessKeyId ||
+  !awsSecretAccessKey ||
+  !awsBucketName
+) {
+  console.error(
+    'Missing required environment variables. Please check your .env file.',
+  );
   process.exit(1);
 }
 
@@ -31,17 +40,17 @@ const s3Client = new S3Client({
 
 async function migrate() {
   console.log('--- Starting Storage Migration (Supabase -> S3) ---');
-  
+
   // List files in Supabase bucket
-  // Note: listing files in Supabase can be tricky if they are deep. 
+  // Note: listing files in Supabase can be tricky if they are deep.
   // We'll try to list recursively if possible, or iterate through folders.
   // For simplicity, we'll start with 'uploads/' folder which is common.
-  
+
   const folders = ['', 'uploads/']; // Add more if needed
-  
+
   for (const folder of folders) {
     console.log(`Listing files in folder: ${folder || 'root'}...`);
-    
+
     const { data: files, error } = await supabase.storage
       .from(supabaseBucket)
       .list(folder, { limit: 1000 });
@@ -64,13 +73,13 @@ async function migrate() {
         // If file has no ID, it might be a folder in Supabase list
         // Note: Supabase list returns objects with metadata if it's a file
         if (!file.metadata) {
-            console.log(`Skipping potential folder or empty item: ${file.name}`);
-            continue;
+          console.log(`Skipping potential folder or empty item: ${file.name}`);
+          continue;
         }
       }
 
       const filePath = folder ? `${folder}${file.name}` : file.name;
-      
+
       console.log(`Migrating: ${filePath}...`);
 
       try {
@@ -80,7 +89,10 @@ async function migrate() {
           .download(filePath);
 
         if (downloadError) {
-          console.error(`  [FAILED] Download error for ${filePath}:`, downloadError.message);
+          console.error(
+            `  [FAILED] Download error for ${filePath}:`,
+            downloadError.message,
+          );
           continue;
         }
 
@@ -107,7 +119,7 @@ async function migrate() {
   console.log('--- Migration Complete ---');
 }
 
-migrate().catch(err => {
+migrate().catch((err) => {
   console.error('Fatal migration error:', err);
   process.exit(1);
 });
