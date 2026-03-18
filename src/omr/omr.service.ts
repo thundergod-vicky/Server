@@ -17,6 +17,7 @@ export class OmrService {
     totalQuestions: number,
     description?: string,
   ) {
+    console.log(`[OMR Service] Creating template: "${name}" for teacher ${teacherId}`);
     // 1. Upload Mother OMR to S3
     const uploadResult = await this.s3Service.uploadFile(file);
 

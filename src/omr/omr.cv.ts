@@ -1,14 +1,85 @@
-import * as cv from '@techstark/opencv-js';
+import * as cvNamespace from '@techstark/opencv-js';
 import { createCanvas, loadImage } from 'canvas';
 import sharp from 'sharp';
 
 export type Answer = { number: number; answer: string };
 
+// We'll use this reference for the initialized OpenCV instance
+let cv: any = cvNamespace;
+
+// Wait for OpenCV to initialize
 // Wait for OpenCV to initialize
 async function ensureCVReady() {
-  if (cv.getBuildInformation) return true;
+  console.log('[OMR CV] Checking OpenCV readiness...');
+
+  // 1. Check if our global 'cv' reference is already initialized
+  if (cv && cv.getBuildInformation && typeof cv.getBuildInformation === 'function') {
+    console.log('[OMR CV] OpenCV already ready.');
+    return true;
+  }
+
+  console.log('[OMR CV] Initializing using require("@techstark/opencv-js")...');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const cvLib = require('@techstark/opencv-js');
+  console.log(`[OMR CV] cvLib type: ${typeof cvLib}. IsPromise: ${cvLib instanceof Promise}. HasBuildInfo: ${!!(cvLib && cvLib.getBuildInformation)} (${typeof (cvLib && cvLib.getBuildInformation)})`);
+
+  // 2. CHECK IMMEDIATE READINESS FIRST (VERY IMPORTANT!)
+  // In some Node.js environments, the library object is already functional 
+  // but also has a .then property that NEVER resolves if we await it!
+  if (cvLib && cvLib.getBuildInformation) {
+    cv = cvLib;
+    console.log('[OMR CV] OpenCV already ready (immediate check).');
+    return true;
+  }
+
+  // 3. Handle Promise/Thenable only if not already ready
+  if (cvLib instanceof Promise || (cvLib && typeof cvLib.then === 'function')) {
+    console.log('[OMR CV] Awaiting OpenCV Promise/Thenable...');
+    try {
+      // Use race for a safety timeout during await
+      const result = await Promise.race([
+        cvLib,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error('Promise Timeout')), 5000),
+        ),
+      ]);
+      cv = result;
+      console.log('[OMR CV] OpenCV initialized from Promise.');
+      return true;
+    } catch {
+      console.warn(
+        '[OMR CV] Promise/Thenable failed or timed out. Falling back to callback/polling.',
+      );
+    }
+  }
+
+  // 4. Fallback for callback-based initialization with polling
   return new Promise<void>((resolve) => {
-    cv.onRuntimeInitialized = () => resolve();
+    console.log('[OMR CV] Waiting for callback/polling...');
+
+    cvLib.onRuntimeInitialized = () => {
+      cv = cvLib;
+      console.log('[OMR CV] OpenCV initialized via callback.');
+      resolve();
+    };
+
+    // Safety polling
+    const interval = setInterval(() => {
+      if (cvLib.getBuildInformation && typeof cvLib.getBuildInformation === 'function') {
+        clearInterval(interval);
+        cv = cvLib;
+        console.log('[OMR CV] OpenCV ready via polling.');
+        resolve();
+      }
+    }, 500);
+
+    setTimeout(() => {
+      clearInterval(interval);
+      if (!(cv && cv.getBuildInformation)) {
+        console.error('[OMR CV] OpenCV initialization timed out after 15s!');
+      }
+      resolve();
+    }, 15000);
   });
 }
 
@@ -30,9 +101,11 @@ export async function analyzeOmrImageLocal(
   buffer: Buffer,
   totalQuestions: number,
 ): Promise<Answer[]> {
+  console.log(`[OMR CV] Starting analysis for ${totalQuestions} questions...`);
   await ensureCVReady();
 
   // Resize the image to a standardized height for consistent contour detection
+  console.log('[OMR CV] Resizing image...');
   const resizedBuffer = await sharp(buffer)
     .resize({ height: 3000, withoutEnlargement: true })
     .toBuffer();
@@ -43,6 +116,7 @@ export async function analyzeOmrImageLocal(
   ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
   const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
 
+  console.log('[OMR CV] Converting to OpenCV Mat...');
   const src = cv.matFromImageData(imgData);
   const gray = new cv.Mat();
   cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
@@ -50,6 +124,7 @@ export async function analyzeOmrImageLocal(
   const blurred = new cv.Mat();
   cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
 
+  console.log('[OMR CV] Detecting contours...');
   const edges = new cv.Mat();
   cv.Canny(blurred, edges, 75, 200);
 
@@ -65,8 +140,9 @@ export async function analyzeOmrImageLocal(
 
   // Find largest valid contour (the bounding box of the grid)
   let maxArea = 0;
-  let maxContour: cv.Mat | null = null;
+  let maxContour: cvNamespace.Mat | null = null;
 
+  console.log(`[OMR CV] Found ${contours.size()} contours. Filtering for largest...`);
   for (let i = 0; i < contours.size(); i++) {
     const cnt = contours.get(i);
     const area = cv.contourArea(cnt);
@@ -78,6 +154,7 @@ export async function analyzeOmrImageLocal(
   }
 
   if (!maxContour) {
+    console.error('[OMR CV] No valid contour found!');
     src.delete();
     gray.delete();
     blurred.delete();
@@ -111,7 +188,8 @@ export async function analyzeOmrImageLocal(
     );
   }
 
-  // Order points TL, TR, BR, BL
+  console.log('[OMR CV] Applying perspective transformation...');
+  // 3. Perspective Transform
   const pts: { x: number; y: number }[] = [];
   for (let i = 0; i < 4; i++) {
     pts.push({
@@ -120,24 +198,25 @@ export async function analyzeOmrImageLocal(
     });
   }
 
+  // Sort points: top-left, top-right, bottom-right, bottom-left
   pts.sort((a, b) => a.y - b.y);
-  const top = pts.slice(0, 2).sort((a, b) => a.x - b.x);
-  const bottom = pts.slice(2, 4).sort((a, b) => b.x - a.x); // BR then BL
-  const ordered = [top[0], top[1], bottom[0], bottom[1]];
+  const topList = pts.slice(0, 2).sort((a, b) => a.x - b.x);
+  const bottomList = pts.slice(2, 4).sort((a, b) => b.x - a.x);
+  const sortedPts = [...topList, ...bottomList];
 
   const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
-    ordered[0].x,
-    ordered[0].y,
-    ordered[1].x,
-    ordered[1].y,
-    ordered[2].x,
-    ordered[2].y,
-    ordered[3].x,
-    ordered[3].y,
+    sortedPts[0].x,
+    sortedPts[0].y,
+    sortedPts[1].x,
+    sortedPts[1].y,
+    sortedPts[2].x,
+    sortedPts[2].y,
+    sortedPts[3].x,
+    sortedPts[3].y,
   ]);
 
   const w = 1200;
-  const h = 2400; // Aspect ratio of a standard OMR sheet grid
+  const h = 2400;
   const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [0, 0, w, 0, w, h, 0, h]);
 
   const M = cv.getPerspectiveTransform(srcTri, dstTri);
@@ -183,6 +262,7 @@ export async function analyzeOmrImageLocal(
     rowCropRatio = 0.7;
   }
 
+  console.log('[OMR CV] Analyzing bubbles...');
   const colWidth = w / qcols;
   const rowHeight = h / rowsPerCol;
 
@@ -244,6 +324,7 @@ export async function analyzeOmrImageLocal(
 
   warped.delete();
 
+  console.log(`[OMR CV] Analysis complete. Detected ${allDetectedAnswers.length} questions.`);
   allDetectedAnswers.sort((a, b) => a.number - b.number);
   return allDetectedAnswers;
 }

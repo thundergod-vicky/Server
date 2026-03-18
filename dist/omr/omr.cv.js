@@ -57,16 +57,76 @@ function _interop_require_wildcard(obj, nodeInterop) {
     }
     return newObj;
 }
+// We'll use this reference for the initialized OpenCV instance
+let cv = _opencvjs;
+// Wait for OpenCV to initialize
 // Wait for OpenCV to initialize
 async function ensureCVReady() {
-    if (_opencvjs.getBuildInformation) return true;
+    console.log('[OMR CV] Checking OpenCV readiness...');
+    // 1. Check if our global 'cv' reference is already initialized
+    if (cv && cv.getBuildInformation && typeof cv.getBuildInformation === 'function') {
+        console.log('[OMR CV] OpenCV already ready.');
+        return true;
+    }
+    console.log('[OMR CV] Initializing using require("@techstark/opencv-js")...');
+    // eslint-disable-next-line @typescript-eslint/no-require-imports
+    const cvLib = require('@techstark/opencv-js');
+    console.log(`[OMR CV] cvLib type: ${typeof cvLib}. IsPromise: ${cvLib instanceof Promise}. HasBuildInfo: ${!!(cvLib && cvLib.getBuildInformation)} (${typeof (cvLib && cvLib.getBuildInformation)})`);
+    // 2. CHECK IMMEDIATE READINESS FIRST (VERY IMPORTANT!)
+    // In some Node.js environments, the library object is already functional 
+    // but also has a .then property that NEVER resolves if we await it!
+    if (cvLib && cvLib.getBuildInformation) {
+        cv = cvLib;
+        console.log('[OMR CV] OpenCV already ready (immediate check).');
+        return true;
+    }
+    // 3. Handle Promise/Thenable only if not already ready
+    if (cvLib instanceof Promise || cvLib && typeof cvLib.then === 'function') {
+        console.log('[OMR CV] Awaiting OpenCV Promise/Thenable...');
+        try {
+            // Use race for a safety timeout during await
+            const result = await Promise.race([
+                cvLib,
+                new Promise((_, reject)=>setTimeout(()=>reject(new Error('Promise Timeout')), 5000))
+            ]);
+            cv = result;
+            console.log('[OMR CV] OpenCV initialized from Promise.');
+            return true;
+        } catch  {
+            console.warn('[OMR CV] Promise/Thenable failed or timed out. Falling back to callback/polling.');
+        }
+    }
+    // 4. Fallback for callback-based initialization with polling
     return new Promise((resolve)=>{
-        _opencvjs.onRuntimeInitialized = ()=>resolve();
+        console.log('[OMR CV] Waiting for callback/polling...');
+        cvLib.onRuntimeInitialized = ()=>{
+            cv = cvLib;
+            console.log('[OMR CV] OpenCV initialized via callback.');
+            resolve();
+        };
+        // Safety polling
+        const interval = setInterval(()=>{
+            if (cvLib.getBuildInformation && typeof cvLib.getBuildInformation === 'function') {
+                clearInterval(interval);
+                cv = cvLib;
+                console.log('[OMR CV] OpenCV ready via polling.');
+                resolve();
+            }
+        }, 500);
+        setTimeout(()=>{
+            clearInterval(interval);
+            if (!(cv && cv.getBuildInformation)) {
+                console.error('[OMR CV] OpenCV initialization timed out after 15s!');
+            }
+            resolve();
+        }, 15000);
     });
 }
 async function analyzeOmrImageLocal(buffer, totalQuestions) {
+    console.log(`[OMR CV] Starting analysis for ${totalQuestions} questions...`);
     await ensureCVReady();
     // Resize the image to a standardized height for consistent contour detection
+    console.log('[OMR CV] Resizing image...');
     const resizedBuffer = await (0, _sharp.default)(buffer).resize({
         height: 3000,
         withoutEnlargement: true
@@ -76,22 +136,25 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
     const ctx = canvas.getContext('2d');
     ctx.drawImage(image, 0, 0, canvas.width, canvas.height);
     const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
-    const src = _opencvjs.matFromImageData(imgData);
-    const gray = new _opencvjs.Mat();
-    _opencvjs.cvtColor(src, gray, _opencvjs.COLOR_RGBA2GRAY);
-    const blurred = new _opencvjs.Mat();
-    _opencvjs.GaussianBlur(gray, blurred, new _opencvjs.Size(5, 5), 0);
-    const edges = new _opencvjs.Mat();
-    _opencvjs.Canny(blurred, edges, 75, 200);
-    const contours = new _opencvjs.MatVector();
-    const hierarchy = new _opencvjs.Mat();
-    _opencvjs.findContours(edges, contours, hierarchy, _opencvjs.RETR_TREE, _opencvjs.CHAIN_APPROX_SIMPLE);
+    console.log('[OMR CV] Converting to OpenCV Mat...');
+    const src = cv.matFromImageData(imgData);
+    const gray = new cv.Mat();
+    cv.cvtColor(src, gray, cv.COLOR_RGBA2GRAY);
+    const blurred = new cv.Mat();
+    cv.GaussianBlur(gray, blurred, new cv.Size(5, 5), 0);
+    console.log('[OMR CV] Detecting contours...');
+    const edges = new cv.Mat();
+    cv.Canny(blurred, edges, 75, 200);
+    const contours = new cv.MatVector();
+    const hierarchy = new cv.Mat();
+    cv.findContours(edges, contours, hierarchy, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE);
     // Find largest valid contour (the bounding box of the grid)
     let maxArea = 0;
     let maxContour = null;
+    console.log(`[OMR CV] Found ${contours.size()} contours. Filtering for largest...`);
     for(let i = 0; i < contours.size(); i++){
         const cnt = contours.get(i);
-        const area = _opencvjs.contourArea(cnt);
+        const area = cv.contourArea(cnt);
         if (area > maxArea) {
             maxArea = area;
             if (maxContour) maxContour.delete();
@@ -99,6 +162,7 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
         }
     }
     if (!maxContour) {
+        console.error('[OMR CV] No valid contour found!');
         src.delete();
         gray.delete();
         blurred.delete();
@@ -107,8 +171,8 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
         hierarchy.delete();
         throw new Error('Could not find OMR grid on the image. Ensure the image is clear and the full RESPONSES box is visible.');
     }
-    const approx = new _opencvjs.Mat();
-    _opencvjs.approxPolyDP(maxContour, approx, 0.02 * _opencvjs.arcLength(maxContour, true), true);
+    const approx = new cv.Mat();
+    cv.approxPolyDP(maxContour, approx, 0.02 * cv.arcLength(maxContour, true), true);
     if (approx.rows !== 4) {
         src.delete();
         gray.delete();
@@ -120,7 +184,8 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
         approx.delete();
         throw new Error('OMR Grid is not rectangular. Please upload a flatter, unskewed image.');
     }
-    // Order points TL, TR, BR, BL
+    console.log('[OMR CV] Applying perspective transformation...');
+    // 3. Perspective Transform
     const pts = [];
     for(let i = 0; i < 4; i++){
         pts.push({
@@ -128,28 +193,27 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
             y: Number(approx.data32S[i * 2 + 1])
         });
     }
+    // Sort points: top-left, top-right, bottom-right, bottom-left
     pts.sort((a, b)=>a.y - b.y);
-    const top = pts.slice(0, 2).sort((a, b)=>a.x - b.x);
-    const bottom = pts.slice(2, 4).sort((a, b)=>b.x - a.x); // BR then BL
-    const ordered = [
-        top[0],
-        top[1],
-        bottom[0],
-        bottom[1]
+    const topList = pts.slice(0, 2).sort((a, b)=>a.x - b.x);
+    const bottomList = pts.slice(2, 4).sort((a, b)=>b.x - a.x);
+    const sortedPts = [
+        ...topList,
+        ...bottomList
     ];
-    const srcTri = _opencvjs.matFromArray(4, 1, _opencvjs.CV_32FC2, [
-        ordered[0].x,
-        ordered[0].y,
-        ordered[1].x,
-        ordered[1].y,
-        ordered[2].x,
-        ordered[2].y,
-        ordered[3].x,
-        ordered[3].y
+    const srcTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
+        sortedPts[0].x,
+        sortedPts[0].y,
+        sortedPts[1].x,
+        sortedPts[1].y,
+        sortedPts[2].x,
+        sortedPts[2].y,
+        sortedPts[3].x,
+        sortedPts[3].y
     ]);
     const w = 1200;
-    const h = 2400; // Aspect ratio of a standard OMR sheet grid
-    const dstTri = _opencvjs.matFromArray(4, 1, _opencvjs.CV_32FC2, [
+    const h = 2400;
+    const dstTri = cv.matFromArray(4, 1, cv.CV_32FC2, [
         0,
         0,
         w,
@@ -159,9 +223,9 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
         0,
         h
     ]);
-    const M = _opencvjs.getPerspectiveTransform(srcTri, dstTri);
-    const warped = new _opencvjs.Mat();
-    _opencvjs.warpPerspective(src, warped, M, new _opencvjs.Size(w, h));
+    const M = cv.getPerspectiveTransform(srcTri, dstTri);
+    const warped = new cv.Mat();
+    cv.warpPerspective(src, warped, M, new cv.Size(w, h));
     // Memory cleanup of setup Phase
     src.delete();
     gray.delete();
@@ -198,6 +262,7 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
         bubbleWidthRatio = 35 / 600;
         rowCropRatio = 0.7;
     }
+    console.log('[OMR CV] Analyzing bubbles...');
     const colWidth = w / qcols;
     const rowHeight = h / rowsPerCol;
     const allDetectedAnswers = [];
@@ -215,13 +280,13 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
                 const bw = Math.floor(colWidth * bubbleWidthRatio);
                 const bh = Math.floor(rowHeight * rowCropRatio);
                 // Read smaller center chunk to avoid outline circles
-                const rect = new _opencvjs.Rect(bx + Math.floor(bw * 0.2), by + Math.floor(bh * 0.2), Math.floor(bw * 0.6), Math.floor(bh * 0.6));
+                const rect = new cv.Rect(bx + Math.floor(bw * 0.2), by + Math.floor(bh * 0.2), Math.floor(bw * 0.6), Math.floor(bh * 0.6));
                 const bubbleMat = warped.roi(rect);
-                const bubbleGray = new _opencvjs.Mat();
-                _opencvjs.cvtColor(bubbleMat, bubbleGray, _opencvjs.COLOR_RGBA2GRAY);
+                const bubbleGray = new cv.Mat();
+                cv.cvtColor(bubbleMat, bubbleGray, cv.COLOR_RGBA2GRAY);
                 // Invert so dark ink becomes high values
-                _opencvjs.threshold(bubbleGray, bubbleGray, 120, 255, _opencvjs.THRESH_BINARY_INV);
-                const meanDarkness = _opencvjs.mean(bubbleGray)[0]; // 0-255
+                cv.threshold(bubbleGray, bubbleGray, 120, 255, cv.THRESH_BINARY_INV);
+                const meanDarkness = cv.mean(bubbleGray)[0]; // 0-255
                 // Threshold: adjust based on ink darkness testing
                 if (meanDarkness > 70) {
                     markedOptions.push((b + 1).toString());
@@ -236,6 +301,7 @@ async function analyzeOmrImageLocal(buffer, totalQuestions) {
         }
     }
     warped.delete();
+    console.log(`[OMR CV] Analysis complete. Detected ${allDetectedAnswers.length} questions.`);
     allDetectedAnswers.sort((a, b)=>a.number - b.number);
     return allDetectedAnswers;
 }

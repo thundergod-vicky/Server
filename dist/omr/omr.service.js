@@ -23,6 +23,7 @@ function _ts_metadata(k, v) {
 }
 let OmrService = class OmrService {
     async createTemplate(teacherId, file, name, totalQuestions, description) {
+        console.log(`[OMR Service] Creating template: "${name}" for teacher ${teacherId}`);
         // 1. Upload Mother OMR to S3
         const uploadResult = await this.s3Service.uploadFile(file);
         // 2. Analyze Mother OMR image dynamically with local OpenCV

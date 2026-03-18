@@ -83,6 +83,7 @@ export class OmrController {
 
       res.setHeader('Content-Type', metadata.mimeType);
       res.setHeader('Cache-Control', 'public, max-age=31536000');
+      res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
       stream.pipe(res);
     } catch {
       res.status(404).json({ message: 'Image not found' });
