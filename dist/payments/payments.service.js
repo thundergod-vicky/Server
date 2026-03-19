@@ -175,16 +175,21 @@ let PaymentsService = class PaymentsService {
                         name: true
                     }
                 },
-                payments: true
+                payments: true,
+                invoices: true
             },
             orderBy: {
                 name: 'asc'
             }
         });
         return students.map((s)=>{
-            const totalPaid = s.payments.filter((p)=>p.status === 'SUCCESS').reduce((sum, p)=>sum + p.amount, 0);
-            const totalFee = s.payments.reduce((sum, p)=>sum + p.amount, 0);
-            const due = totalFee - totalPaid;
+            const totalPaidFromPayments = s.payments.filter((p)=>p.status === 'SUCCESS').reduce((sum, p)=>sum + p.amount, 0);
+            const totalPaidFromInvoices = s.invoices.filter((inv)=>inv.status === 'PAID').reduce((sum, inv)=>sum + (inv.total || inv.amount), 0);
+            // Use the higher value to ensure that paid invoices are always accounted for, 
+            // even if the linked payment record has an outdated amount.
+            const totalPaid = Math.max(totalPaidFromPayments, totalPaidFromInvoices);
+            const totalFee = s.invoices.filter((inv)=>inv.status !== 'CANCELLED').reduce((sum, inv)=>sum + (inv.total || inv.amount), 0);
+            const due = Math.max(0, totalFee - totalPaid);
             // Use manual status if set and valid, else calculate
             let status = s.financialStatus || 'NONE';
             if (!s.financialStatus || s.financialStatus === 'NONE') {

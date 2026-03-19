@@ -119,11 +119,12 @@ export class PaymentsService {
         financialStatus: true,
         batchesEnrolled: { select: { id: true, name: true } },
         payments: true,
+        invoices: true,
       },
       orderBy: { name: 'asc' },
     });
 
-    interface StudentWithPayments {
+    interface StudentWithPaymentsAndInvoices {
       id: string;
       name: string | null;
       email: string;
@@ -132,13 +133,26 @@ export class PaymentsService {
       financialStatus: string | null;
       batchesEnrolled: { id: string; name: string }[];
       payments: { amount: number; status: string }[];
+      invoices: { total: number; amount: number; status: string }[];
     }
-    return (students as unknown as StudentWithPayments[]).map((s) => {
-      const totalPaid = s.payments
+    return (students as unknown as StudentWithPaymentsAndInvoices[]).map((s) => {
+      const totalPaidFromPayments = s.payments
         .filter((p) => p.status === 'SUCCESS')
         .reduce((sum, p) => sum + p.amount, 0);
-      const totalFee = s.payments.reduce((sum, p) => sum + p.amount, 0);
-      const due = totalFee - totalPaid;
+
+      const totalPaidFromInvoices = s.invoices
+        .filter((inv) => inv.status === 'PAID')
+        .reduce((sum, inv) => sum + (inv.total || inv.amount), 0);
+
+      // Use the higher value to ensure that paid invoices are always accounted for, 
+      // even if the linked payment record has an outdated amount.
+      const totalPaid = Math.max(totalPaidFromPayments, totalPaidFromInvoices);
+
+      const totalFee = s.invoices
+        .filter((inv) => inv.status !== 'CANCELLED')
+        .reduce((sum, inv) => sum + (inv.total || inv.amount), 0);
+        
+      const due = Math.max(0, totalFee - totalPaid);
 
       // Use manual status if set and valid, else calculate
       let status = s.financialStatus || 'NONE';

@@ -18,6 +18,7 @@ import { PublicModule } from './public/public.module';
 import { OmrModule } from './omr/omr.module';
 import { ClassSessionsModule } from './class-sessions/class-sessions.module';
 import { ZoomModule } from './zoom/zoom.module';
+import { BillingModule } from './billing/billing.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { ZoomModule } from './zoom/zoom.module';
     OmrModule,
     ClassSessionsModule,
     ZoomModule,
+    BillingModule,
   ],
   controllers: [AppController],
   providers: [AppService],

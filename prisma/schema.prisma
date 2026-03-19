@@ -132,6 +132,7 @@ model User {
   batchesTaught   Batch[]        @relation("TeacherBatches")
   batchesEnrolled Batch[]        @relation("StudentBatches")
   classSessions   ClassSession[] @relation("TeacherSessions")
+  invoices        Invoice[]
 }
 
 model Batch {
@@ -439,4 +440,47 @@ model OmrResult {
   total       Int
   answers     Json // Student's marked options
   createdAt   DateTime    @default(now())
+}
+
+enum InvoiceStatus {
+  PENDING
+  PAID
+  CANCELLED
+}
+
+model BillingTemplate {
+  id          String   @id @default(cuid())
+  name        String
+  description String?
+  baseAmount  Float
+  taxRate     Float    @default(18.0)
+  tenure      String?  // e.g., "03 Months"
+  batch       String?  // e.g., "Alpha Advanced"
+  discount    String?  // e.g., "25%"
+  items       Json?    // Optional: List of line items
+  metadata    Json?    // New: Rich template defaults (branding, plans, etc.)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  invoices    Invoice[]
+}
+
+model Invoice {
+  id            String        @id @default(cuid())
+  invoiceNumber String        @unique
+  studentId     String
+  templateId    String?
+  amount        Float
+  tax           Float
+  total         Float
+  status        InvoiceStatus @default(PENDING)
+  paymentMethod String?       // New: upi, card, cash, cheque
+  transactionId String?       // New: Indexable transaction reference
+  metadata      Json?         // New: Full snapshot of 30+ fields
+  items         Json?         // Detailed line items
+  sentAt        DateTime?
+  pdFUrl        String?
+  student       User          @relation(fields: [studentId], references: [id])
+  template      BillingTemplate? @relation(fields: [templateId], references: [id])
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
 }
