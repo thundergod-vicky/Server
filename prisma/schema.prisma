@@ -445,6 +445,8 @@ model OmrResult {
 enum InvoiceStatus {
   PENDING
   PAID
+  EMI
+  PARTIAL
   CANCELLED
 }
 

@@ -151,7 +151,7 @@ export class BillingService {
 
   async updateInvoice(id: string, data: any) {
     // Extract fields we want to update
-    const { items, metadata, status, paymentMethod, transactionId, amount, tax, total, remarks } = data;
+    const { items, metadata, status, paymentMethod, transactionId, amount, tax, total } = data;
     
     // Create an update object, only including fields that are present in the request
     const updateData: any = {};
@@ -163,7 +163,6 @@ export class BillingService {
     if (amount !== undefined) updateData.amount = parseFloat(amount.toString()) || 0;
     if (tax !== undefined) updateData.tax = parseFloat(tax.toString()) || 0;
     if (total !== undefined) updateData.total = parseFloat(total.toString()) || 0;
-    if (remarks !== undefined) updateData.remarks = remarks;
 
     // Find the current invoice to identify the linked payment before updating
     const currentInvoice = await this.prisma.invoice.findUnique({ where: { id } });
@@ -190,6 +189,8 @@ export class BillingService {
         if (payment) {
           const paymentStatusMap: Record<string, 'PENDING' | 'SUCCESS' | 'FAILED'> = {
             'PAID': 'SUCCESS',
+            'EMI': 'SUCCESS',
+            'PARTIAL': 'SUCCESS',
             'PENDING': 'PENDING',
             'CANCELLED': 'FAILED'
           };
