@@ -2,6 +2,7 @@ import {
   Controller,
   Get,
   Patch,
+  Post,
   Delete,
   Body,
   Param,
@@ -125,5 +126,19 @@ export class AdminController {
   async deletePracticeTest(@Param('id') testId: string, @Request() req) {
     this.checkAdmin(req);
     return this.adminService.deletePracticeTest(testId);
+  }
+
+  @Delete('users/:id')
+  @ApiOperation({ summary: 'Delete a user' })
+  async deleteUser(@Param('id') userId: string, @Request() req) {
+    this.checkAdmin(req);
+    return this.adminService.deleteUser(userId);
+  }
+
+  @Post('users')
+  @ApiOperation({ summary: 'Create a new user' })
+  async createUser(@Body() data: any, @Request() req) {
+    this.checkAdmin(req);
+    return this.adminService.createUser(data);
   }
 }

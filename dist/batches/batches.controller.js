@@ -59,9 +59,9 @@ let BatchesController = class BatchesController {
         this.checkAdmin(req);
         return this.batchesService.assignStudents(id, assignStudentsDto.studentIds);
     }
-    assignTeacher(id, data, req) {
+    assignTeachers(id, data, req) {
         this.checkAdmin(req);
-        return this.batchesService.assignTeacher(id, data.teacherId);
+        return this.batchesService.assignTeachers(id, data.teacherIds);
     }
     removeStudent(id, studentId, req) {
         this.checkAdmin(req);
@@ -142,9 +142,9 @@ _ts_decorate([
     _ts_metadata("design:returntype", void 0)
 ], BatchesController.prototype, "assignStudents", null);
 _ts_decorate([
-    (0, _common.Patch)(':id/teacher'),
+    (0, _common.Patch)(':id/teachers'),
     (0, _swagger.ApiOperation)({
-        summary: 'Assign a teacher to a batch (Admin only)'
+        summary: 'Assign teachers to a batch (Admin only)'
     }),
     _ts_param(0, (0, _common.Param)('id')),
     _ts_param(1, (0, _common.Body)()),
@@ -156,7 +156,7 @@ _ts_decorate([
         void 0
     ]),
     _ts_metadata("design:returntype", void 0)
-], BatchesController.prototype, "assignTeacher", null);
+], BatchesController.prototype, "assignTeachers", null);
 _ts_decorate([
     (0, _common.Delete)(':id/students/:studentId'),
     (0, _swagger.ApiOperation)({

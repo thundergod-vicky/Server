@@ -75,15 +75,15 @@ export class BatchesController {
     return this.batchesService.assignStudents(id, assignStudentsDto.studentIds);
   }
 
-  @Patch(':id/teacher')
-  @ApiOperation({ summary: 'Assign a teacher to a batch (Admin only)' })
-  assignTeacher(
+  @Patch(':id/teachers')
+  @ApiOperation({ summary: 'Assign teachers to a batch (Admin only)' })
+  assignTeachers(
     @Param('id') id: string,
-    @Body() data: { teacherId: string },
+    @Body() data: { teacherIds: string[] },
     @Request() req,
   ) {
     this.checkAdmin(req);
-    return this.batchesService.assignTeacher(id, data.teacherId);
+    return this.batchesService.assignTeachers(id, data.teacherIds);
   }
 
   @Delete(':id/students/:studentId')

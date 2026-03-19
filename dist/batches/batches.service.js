@@ -25,10 +25,14 @@ let BatchesService = class BatchesService {
             data: {
                 name: createBatchDto.name,
                 description: createBatchDto.description,
-                teacherId: createBatchDto.teacherId
+                teachers: {
+                    connect: createBatchDto.teacherIds.map((id)=>({
+                            id
+                        }))
+                }
             },
             include: {
-                teacher: {
+                teachers: {
                     select: {
                         id: true,
                         name: true,
@@ -41,7 +45,14 @@ let BatchesService = class BatchesService {
     async findAll() {
         return this.prisma.batch.findMany({
             include: {
-                teacher: {
+                teachers: {
+                    select: {
+                        id: true,
+                        name: true,
+                        email: true
+                    }
+                },
+                students: {
                     select: {
                         id: true,
                         name: true,
@@ -62,7 +73,7 @@ let BatchesService = class BatchesService {
                 id
             },
             include: {
-                teacher: {
+                teachers: {
                     select: {
                         id: true,
                         name: true,
@@ -90,7 +101,7 @@ let BatchesService = class BatchesService {
             },
             data: {
                 students: {
-                    connect: studentIds.map((id)=>({
+                    set: studentIds.map((id)=>({
                             id
                         }))
                 }
@@ -106,16 +117,20 @@ let BatchesService = class BatchesService {
             }
         });
     }
-    async assignTeacher(batchId, teacherId) {
+    async assignTeachers(batchId, teacherIds) {
         return this.prisma.batch.update({
             where: {
                 id: batchId
             },
             data: {
-                teacherId: teacherId
+                teachers: {
+                    connect: teacherIds.map((id)=>({
+                            id
+                        }))
+                }
             },
             include: {
-                teacher: {
+                teachers: {
                     select: {
                         id: true,
                         name: true,
@@ -149,7 +164,7 @@ let BatchesService = class BatchesService {
                 }
             },
             include: {
-                teacher: {
+                teachers: {
                     select: {
                         id: true,
                         name: true,
@@ -162,7 +177,11 @@ let BatchesService = class BatchesService {
     async findByTeacher(teacherId) {
         return this.prisma.batch.findMany({
             where: {
-                teacherId
+                teachers: {
+                    some: {
+                        id: teacherId
+                    }
+                }
             },
             include: {
                 _count: {

@@ -14,7 +14,8 @@ export class CreateBatchDto {
   @IsString()
   description?: string;
 
-  @ApiProperty({ example: 'userId_of_teacher' })
-  @IsString()
-  teacherId: string;
+  @ApiProperty({ example: ['teacher_id_1', 'teacher_id_2'], isArray: true })
+  @IsArray()
+  @IsString({ each: true })
+  teacherIds: string[];
 }

@@ -19,6 +19,7 @@ import { OmrModule } from './omr/omr.module';
 import { ClassSessionsModule } from './class-sessions/class-sessions.module';
 import { ZoomModule } from './zoom/zoom.module';
 import { BillingModule } from './billing/billing.module';
+import { ExamsModule } from './exams/exams.module';
 
 @Module({
   imports: [
@@ -40,6 +41,7 @@ import { BillingModule } from './billing/billing.module';
     ClassSessionsModule,
     ZoomModule,
     BillingModule,
+    ExamsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,14 +2,21 @@
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
-Object.defineProperty(exports, "CreateBatchDto", {
-    enumerable: true,
-    get: function() {
-        return CreateBatchDto;
+function _export(target, all) {
+    for(var name in all)Object.defineProperty(target, name, {
+        enumerable: true,
+        get: Object.getOwnPropertyDescriptor(all, name).get
+    });
+}
+_export(exports, {
+    get CreateExamDto () {
+        return CreateExamDto;
+    },
+    get ExamStatus () {
+        return ExamStatus;
     }
 });
 const _classvalidator = require("class-validator");
-const _swagger = require("@nestjs/swagger");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -19,37 +26,32 @@ function _ts_decorate(decorators, target, key, desc) {
 function _ts_metadata(k, v) {
     if (typeof Reflect === "object" && typeof Reflect.metadata === "function") return Reflect.metadata(k, v);
 }
-let CreateBatchDto = class CreateBatchDto {
+var ExamStatus = /*#__PURE__*/ function(ExamStatus) {
+    ExamStatus["DRAFT"] = "DRAFT";
+    ExamStatus["PLANNED"] = "PLANNED";
+    ExamStatus["SCHEDULED"] = "SCHEDULED";
+    return ExamStatus;
+}({});
+let CreateExamDto = class CreateExamDto {
 };
 _ts_decorate([
-    (0, _swagger.ApiProperty)({
-        example: 'Class 10 - Mathematics'
-    }),
     (0, _classvalidator.IsString)(),
     _ts_metadata("design:type", String)
-], CreateBatchDto.prototype, "name", void 0);
+], CreateExamDto.prototype, "title", void 0);
 _ts_decorate([
-    (0, _swagger.ApiProperty)({
-        example: 'Morning batch for class 10 math students',
-        required: false
-    }),
+    (0, _classvalidator.IsString)(),
     (0, _classvalidator.IsOptional)(),
-    (0, _classvalidator.IsString)(),
     _ts_metadata("design:type", String)
-], CreateBatchDto.prototype, "description", void 0);
+], CreateExamDto.prototype, "description", void 0);
 _ts_decorate([
-    (0, _swagger.ApiProperty)({
-        example: [
-            'teacher_id_1',
-            'teacher_id_2'
-        ],
-        isArray: true
-    }),
-    (0, _classvalidator.IsArray)(),
-    (0, _classvalidator.IsString)({
-        each: true
-    }),
-    _ts_metadata("design:type", Array)
-], CreateBatchDto.prototype, "teacherIds", void 0);
+    (0, _classvalidator.IsString)(),
+    (0, _classvalidator.IsOptional)(),
+    _ts_metadata("design:type", String)
+], CreateExamDto.prototype, "batchId", void 0);
+_ts_decorate([
+    (0, _classvalidator.IsEnum)(ExamStatus),
+    (0, _classvalidator.IsOptional)(),
+    _ts_metadata("design:type", String)
+], CreateExamDto.prototype, "status", void 0);
 
-//# sourceMappingURL=create-batch.dto.js.map
+//# sourceMappingURL=create-exam.dto.js.map

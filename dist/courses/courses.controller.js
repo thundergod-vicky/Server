@@ -27,11 +27,13 @@ function _ts_param(paramIndex, decorator) {
 }
 let CoursesController = class CoursesController {
     create(createCourseDto, req) {
+        const isPowerUser = req.user.role === 'ADMIN' || req.user.role === 'ACADEMIC_OPERATIONS';
+        const teacherId = isPowerUser && createCourseDto.teacherId ? createCourseDto.teacherId : req.user.id;
         return this.coursesService.create({
             ...createCourseDto,
             teacher: {
                 connect: {
-                    id: req.user.id
+                    id: teacherId
                 }
             }
         });

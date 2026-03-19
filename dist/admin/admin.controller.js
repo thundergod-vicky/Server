@@ -79,6 +79,14 @@ let AdminController = class AdminController {
         this.checkAdmin(req);
         return this.adminService.deletePracticeTest(testId);
     }
+    async deleteUser(userId, req) {
+        this.checkAdmin(req);
+        return this.adminService.deleteUser(userId);
+    }
+    async createUser(data, req) {
+        this.checkAdmin(req);
+        return this.adminService.createUser(data);
+    }
     constructor(adminService){
         this.adminService = adminService;
     }
@@ -239,6 +247,34 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AdminController.prototype, "deletePracticeTest", null);
+_ts_decorate([
+    (0, _common.Delete)('users/:id'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Delete a user'
+    }),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_param(1, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String,
+        void 0
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdminController.prototype, "deleteUser", null);
+_ts_decorate([
+    (0, _common.Post)('users'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Create a new user'
+    }),
+    _ts_param(0, (0, _common.Body)()),
+    _ts_param(1, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        Object,
+        void 0
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdminController.prototype, "createUser", null);
 AdminController = _ts_decorate([
     (0, _swagger.ApiExcludeController)(),
     (0, _swagger.ApiTags)('Admin'),

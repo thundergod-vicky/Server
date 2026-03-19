@@ -18,9 +18,12 @@ export class CoursesController {
   @Post()
   @UseGuards(JwtAuthGuard)
   create(@Body() createCourseDto: any, @Request() req) {
+    const isPowerUser = req.user.role === 'ADMIN' || req.user.role === 'ACADEMIC_OPERATIONS';
+    const teacherId = (isPowerUser && createCourseDto.teacherId) ? createCourseDto.teacherId : req.user.id;
+    
     return this.coursesService.create({
       ...createCourseDto,
-      teacher: { connect: { id: req.user.id } },
+      teacher: { connect: { id: teacherId } },
     });
   }
 

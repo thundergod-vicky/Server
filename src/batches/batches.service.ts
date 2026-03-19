@@ -11,10 +11,12 @@ export class BatchesService {
       data: {
         name: createBatchDto.name,
         description: createBatchDto.description,
-        teacherId: createBatchDto.teacherId,
+        teachers: {
+          connect: createBatchDto.teacherIds.map((id) => ({ id })),
+        },
       },
       include: {
-        teacher: { select: { id: true, name: true, email: true } },
+        teachers: { select: { id: true, name: true, email: true } },
       },
     });
   }
@@ -22,7 +24,8 @@ export class BatchesService {
   async findAll() {
     return this.prisma.batch.findMany({
       include: {
-        teacher: { select: { id: true, name: true, email: true } },
+        teachers: { select: { id: true, name: true, email: true } },
+        students: { select: { id: true, name: true, email: true } },
         _count: { select: { students: true } },
       },
     });
@@ -32,7 +35,7 @@ export class BatchesService {
     const batch = await this.prisma.batch.findUnique({
       where: { id },
       include: {
-        teacher: { select: { id: true, name: true, email: true } },
+        teachers: { select: { id: true, name: true, email: true } },
         students: { select: { id: true, name: true, email: true } },
       },
     });
@@ -49,7 +52,7 @@ export class BatchesService {
       where: { id: batchId },
       data: {
         students: {
-          connect: studentIds.map((id) => ({ id })),
+          set: studentIds.map((id) => ({ id })),
         },
       },
       include: {
@@ -58,14 +61,16 @@ export class BatchesService {
     });
   }
 
-  async assignTeacher(batchId: string, teacherId: string) {
+  async assignTeachers(batchId: string, teacherIds: string[]) {
     return this.prisma.batch.update({
       where: { id: batchId },
       data: {
-        teacherId: teacherId,
+        teachers: {
+          connect: teacherIds.map((id) => ({ id })),
+        },
       },
       include: {
-        teacher: { select: { id: true, name: true, email: true } },
+        teachers: { select: { id: true, name: true, email: true } },
       },
     });
   }
@@ -89,14 +94,18 @@ export class BatchesService {
         },
       },
       include: {
-        teacher: { select: { id: true, name: true, email: true } },
+        teachers: { select: { id: true, name: true, email: true } },
       },
     });
   }
 
   async findByTeacher(teacherId: string) {
     return this.prisma.batch.findMany({
-      where: { teacherId },
+      where: {
+        teachers: {
+          some: { id: teacherId },
+        },
+      },
       include: {
         _count: { select: { students: true } },
       },

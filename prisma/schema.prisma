@@ -133,16 +133,20 @@ model User {
   batchesEnrolled Batch[]        @relation("StudentBatches")
   classSessions   ClassSession[] @relation("TeacherSessions")
   invoices        Invoice[]
+  
+  assignedExams   Exam[]         @relation("AssignedExams")
+  createdExams    Exam[]         @relation("CreatedExams")
+  examResults     ExamResult[]
 }
 
 model Batch {
   id          String         @id @default(cuid())
   name        String
   description String?
-  teacherId   String
-  teacher     User           @relation("TeacherBatches", fields: [teacherId], references: [id])
+  teachers    User[]         @relation("TeacherBatches")
   students    User[]         @relation("StudentBatches")
   sessions    ClassSession[]
+  exams       Exam[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
 }
@@ -485,4 +489,51 @@ model Invoice {
   template      BillingTemplate? @relation(fields: [templateId], references: [id])
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
+}
+enum ExamStatus {
+  DRAFT
+  PLANNED
+  SCHEDULED
+}
+
+model Exam {
+  id             String       @id @default(cuid())
+  title          String
+  description    String?
+  status         ExamStatus   @default(PLANNED)
+  
+  startTime      DateTime?
+  endTime        DateTime?
+  duration       Int?         // in minutes
+  
+  questions      Json?        // Array of questions
+  totalQuestions Int          @default(0)
+  
+  batchId        String?
+  batch          Batch?       @relation(fields: [batchId], references: [id])
+  
+  // Specific student assignments (optional)
+  assignedStudents User[]     @relation("AssignedExams")
+  
+  creatorId      String
+  creator        User         @relation("CreatedExams", fields: [creatorId], references: [id])
+  
+  results        ExamResult[]
+  
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+}
+
+model ExamResult {
+  id          String   @id @default(cuid())
+  examId      String
+  exam        Exam     @relation(fields: [examId], references: [id])
+  studentId   String
+  student     User     @relation(fields: [studentId], references: [id])
+  score       Float
+  total       Float
+  answers     Json?
+  submittedAt DateTime @default(now())
+
+  @@unique([examId, studentId])
 }

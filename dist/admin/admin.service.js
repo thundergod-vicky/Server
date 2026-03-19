@@ -11,6 +11,49 @@ Object.defineProperty(exports, "AdminService", {
 const _common = require("@nestjs/common");
 const _client = require("@prisma/client");
 const _prismaservice = require("../prisma/prisma.service");
+const _bcrypt = /*#__PURE__*/ _interop_require_wildcard(require("bcrypt"));
+const _crypto = /*#__PURE__*/ _interop_require_wildcard(require("crypto"));
+function _getRequireWildcardCache(nodeInterop) {
+    if (typeof WeakMap !== "function") return null;
+    var cacheBabelInterop = new WeakMap();
+    var cacheNodeInterop = new WeakMap();
+    return (_getRequireWildcardCache = function(nodeInterop) {
+        return nodeInterop ? cacheNodeInterop : cacheBabelInterop;
+    })(nodeInterop);
+}
+function _interop_require_wildcard(obj, nodeInterop) {
+    if (!nodeInterop && obj && obj.__esModule) {
+        return obj;
+    }
+    if (obj === null || typeof obj !== "object" && typeof obj !== "function") {
+        return {
+            default: obj
+        };
+    }
+    var cache = _getRequireWildcardCache(nodeInterop);
+    if (cache && cache.has(obj)) {
+        return cache.get(obj);
+    }
+    var newObj = {
+        __proto__: null
+    };
+    var hasPropertyDescriptor = Object.defineProperty && Object.getOwnPropertyDescriptor;
+    for(var key in obj){
+        if (key !== "default" && Object.prototype.hasOwnProperty.call(obj, key)) {
+            var desc = hasPropertyDescriptor ? Object.getOwnPropertyDescriptor(obj, key) : null;
+            if (desc && (desc.get || desc.set)) {
+                Object.defineProperty(newObj, key, desc);
+            } else {
+                newObj[key] = obj[key];
+            }
+        }
+    }
+    newObj.default = obj;
+    if (cache) {
+        cache.set(obj, newObj);
+    }
+    return newObj;
+}
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -347,6 +390,114 @@ let AdminService = class AdminService {
         return this.prisma.practiceTest.delete({
             where: {
                 id: testId
+            }
+        });
+    }
+    async deleteUser(userId) {
+        // Basic cleanup - for production this should be more robust or use Cascade
+        await Promise.all([
+            this.prisma.enrollment.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            }),
+            this.prisma.studentProgress.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            }),
+            this.prisma.testResult.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            }),
+            this.prisma.payment.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            }),
+            this.prisma.parentStudent.deleteMany({
+                where: {
+                    OR: [
+                        {
+                            parentId: userId
+                        },
+                        {
+                            studentId: userId
+                        }
+                    ]
+                }
+            }),
+            this.prisma.practiceTestResult.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            }),
+            this.prisma.chatMessage.deleteMany({
+                where: {
+                    OR: [
+                        {
+                            senderId: userId
+                        },
+                        {
+                            receiverId: userId
+                        }
+                    ]
+                }
+            }),
+            this.prisma.chatRequest.deleteMany({
+                where: {
+                    OR: [
+                        {
+                            senderId: userId
+                        },
+                        {
+                            receiverId: userId
+                        }
+                    ]
+                }
+            }),
+            this.prisma.courseAssignment.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            }),
+            this.prisma.parentRequest.deleteMany({
+                where: {
+                    parentId: userId
+                }
+            }),
+            this.prisma.loginHistory.deleteMany({
+                where: {
+                    userId
+                }
+            }),
+            this.prisma.notification.deleteMany({
+                where: {
+                    userId
+                }
+            }),
+            this.prisma.invoice.deleteMany({
+                where: {
+                    studentId: userId
+                }
+            })
+        ]);
+        return this.prisma.user.delete({
+            where: {
+                id: userId
+            }
+        });
+    }
+    async createUser(data) {
+        const hashedPassword = await _bcrypt.hash(data.password, 10);
+        const enrollmentId = data.enrollmentId || await this.generateEnrollmentId(data.role);
+        return this.prisma.user.create({
+            data: {
+                ...data,
+                password: hashedPassword,
+                enrollmentId,
+                profileSlug: _crypto.randomUUID()
             }
         });
     }

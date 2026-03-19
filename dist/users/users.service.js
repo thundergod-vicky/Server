@@ -84,6 +84,8 @@ let UsersService = class UsersService {
                                 email: true,
                                 grade: true,
                                 medal: true,
+                                role: true,
+                                enrollmentId: true,
                                 profileSlug: true
                             }
                         }
@@ -107,64 +109,93 @@ let UsersService = class UsersService {
                 }
             }
         });
-        if (user && !user.isManual && (!user.profileSlug || !user.profileSettings || !user.enrollmentId)) {
+        if (user) {
             const updateData = {};
-            if (!user.profileSlug) updateData.profileSlug = _crypto.randomUUID();
-            if (!user.enrollmentId) {
-                updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+            let needsUpdate = false;
+            // Fix main user if needed
+            if (!user.isManual) {
+                if (!user.profileSlug) {
+                    updateData.profileSlug = _crypto.randomUUID();
+                    needsUpdate = true;
+                }
+                if (!user.enrollmentId) {
+                    updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+                    needsUpdate = true;
+                }
+                if (!user.profileSettings) {
+                    updateData.profileSettings = {
+                        showMedals: true,
+                        showGrades: true,
+                        showCourses: true,
+                        showTestResults: true
+                    };
+                    needsUpdate = true;
+                }
             }
-            if (!user.profileSettings) {
-                updateData.profileSettings = {
-                    showMedals: true,
-                    showGrades: true,
-                    showCourses: true,
-                    showTestResults: true
-                };
-            }
-            return this.prisma.user.update({
-                where: {
-                    id: user.id
-                },
-                data: updateData,
-                include: {
-                    assignedByTeacher: {
-                        select: {
-                            name: true
-                        }
-                    },
-                    parentOf: {
-                        include: {
-                            student: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    email: true,
-                                    grade: true,
-                                    medal: true,
-                                    enrollmentId: true,
-                                    profileSlug: true
-                                }
+            // Fix linked students if needed
+            if (user.parentOf?.length > 0) {
+                for (const link of user.parentOf){
+                    if (!link.student.enrollmentId) {
+                        const newStudentId = await this.generateEnrollmentId(link.student.role);
+                        await this.prisma.user.update({
+                            where: {
+                                id: link.student.id
+                            },
+                            data: {
+                                enrollmentId: newStudentId
                             }
-                        }
-                    },
-                    studentOf: {
-                        include: {
-                            parent: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    email: true
-                                }
-                            }
-                        }
-                    },
-                    parentRequests: {
-                        orderBy: {
-                            createdAt: 'desc'
-                        }
+                        });
+                        console.log(`Auto-fixed missing enrollmentId (findOne) for student: ${link.student.email} -> ${newStudentId}`);
                     }
                 }
-            });
+            }
+            if (needsUpdate) {
+                return this.prisma.user.update({
+                    where: {
+                        id: user.id
+                    },
+                    data: updateData,
+                    include: {
+                        assignedByTeacher: {
+                            select: {
+                                name: true
+                            }
+                        },
+                        parentOf: {
+                            include: {
+                                student: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true,
+                                        grade: true,
+                                        medal: true,
+                                        role: true,
+                                        enrollmentId: true,
+                                        profileSlug: true
+                                    }
+                                }
+                            }
+                        },
+                        studentOf: {
+                            include: {
+                                parent: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true
+                                    }
+                                }
+                            }
+                        },
+                        parentRequests: {
+                            orderBy: {
+                                createdAt: 'desc'
+                            }
+                        }
+                    }
+                });
+            }
         }
         return user;
     }
@@ -188,6 +219,7 @@ let UsersService = class UsersService {
                                 email: true,
                                 grade: true,
                                 medal: true,
+                                role: true,
                                 enrollmentId: true,
                                 profileSlug: true
                             }
@@ -236,80 +268,108 @@ let UsersService = class UsersService {
                 }
             }
         });
-        if (user && !user.isManual && (!user.profileSlug || !user.enrollmentId)) {
+        if (user) {
             const updateData = {};
-            if (!user.profileSlug) updateData.profileSlug = _crypto.randomUUID();
-            if (!user.enrollmentId) {
-                updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+            let needsUpdate = false;
+            // Fix main user if needed
+            if (!user.isManual) {
+                if (!user.profileSlug) {
+                    updateData.profileSlug = _crypto.randomUUID();
+                    needsUpdate = true;
+                }
+                if (!user.enrollmentId) {
+                    updateData.enrollmentId = await this.generateEnrollmentId(user.role);
+                    needsUpdate = true;
+                }
             }
-            return this.prisma.user.update({
-                where: {
-                    id: user.id
-                },
-                data: updateData,
-                include: {
-                    assignedByTeacher: {
-                        select: {
-                            name: true
-                        }
-                    },
-                    parentOf: {
-                        include: {
-                            student: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    email: true,
-                                    grade: true,
-                                    medal: true,
-                                    enrollmentId: true,
-                                    profileSlug: true
-                                }
+            // Fix linked students if needed
+            if (user.parentOf?.length > 0) {
+                for (const link of user.parentOf){
+                    if (!link.student.enrollmentId) {
+                        const newStudentId = await this.generateEnrollmentId(link.student.role);
+                        await this.prisma.user.update({
+                            where: {
+                                id: link.student.id
+                            },
+                            data: {
+                                enrollmentId: newStudentId
                             }
-                        }
+                        });
+                        console.log(`Auto-fixed missing enrollmentId for student: ${link.student.email} -> ${newStudentId}`);
+                    }
+                }
+            }
+            if (needsUpdate) {
+                return this.prisma.user.update({
+                    where: {
+                        id: user.id
                     },
-                    studentOf: {
-                        include: {
-                            parent: {
-                                select: {
-                                    id: true,
-                                    name: true,
-                                    email: true
-                                }
+                    data: updateData,
+                    include: {
+                        assignedByTeacher: {
+                            select: {
+                                name: true
                             }
-                        }
-                    },
-                    parentRequests: {
-                        orderBy: {
-                            createdAt: 'desc'
-                        }
-                    },
-                    enrollments: {
-                        include: {
-                            course: {
-                                select: {
-                                    id: true,
-                                    title: true,
-                                    thumbnail: true
-                                }
-                            }
-                        }
-                    },
-                    practiceTestResults: {
-                        include: {
-                            test: {
-                                select: {
-                                    id: true,
-                                    title: true
+                        },
+                        parentOf: {
+                            include: {
+                                student: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true,
+                                        grade: true,
+                                        medal: true,
+                                        role: true,
+                                        enrollmentId: true,
+                                        profileSlug: true
+                                    }
                                 }
                             }
                         },
-                        orderBy: {
-                            createdAt: 'desc'
+                        studentOf: {
+                            include: {
+                                parent: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        email: true
+                                    }
+                                }
+                            }
+                        },
+                        parentRequests: {
+                            orderBy: {
+                                createdAt: 'desc'
+                            }
+                        },
+                        enrollments: {
+                            include: {
+                                course: {
+                                    select: {
+                                        id: true,
+                                        title: true,
+                                        thumbnail: true
+                                    }
+                                }
+                            }
+                        },
+                        practiceTestResults: {
+                            include: {
+                                test: {
+                                    select: {
+                                        id: true,
+                                        title: true
+                                    }
+                                }
+                            },
+                            orderBy: {
+                                createdAt: 'desc'
+                            }
                         }
                     }
-                }
-            });
+                });
+            }
         }
         return user;
     }

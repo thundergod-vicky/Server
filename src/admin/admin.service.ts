@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
+import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AdminService {
@@ -295,6 +297,50 @@ export class AdminService {
     // Then delete the test
     return this.prisma.practiceTest.delete({
       where: { id: testId },
+    });
+  }
+
+  async deleteUser(userId: string) {
+    // Basic cleanup - for production this should be more robust or use Cascade
+    await Promise.all([
+      this.prisma.enrollment.deleteMany({ where: { studentId: userId } }),
+      this.prisma.studentProgress.deleteMany({ where: { studentId: userId } }),
+      this.prisma.testResult.deleteMany({ where: { studentId: userId } }),
+      this.prisma.payment.deleteMany({ where: { studentId: userId } }),
+      this.prisma.parentStudent.deleteMany({
+        where: { OR: [{ parentId: userId }, { studentId: userId }] },
+      }),
+      this.prisma.practiceTestResult.deleteMany({ where: { studentId: userId } }),
+      this.prisma.chatMessage.deleteMany({
+        where: { OR: [{ senderId: userId }, { receiverId: userId }] },
+      }),
+      this.prisma.chatRequest.deleteMany({
+        where: { OR: [{ senderId: userId }, { receiverId: userId }] },
+      }),
+      this.prisma.courseAssignment.deleteMany({ where: { studentId: userId } }),
+      this.prisma.parentRequest.deleteMany({ where: { parentId: userId } }),
+      this.prisma.loginHistory.deleteMany({ where: { userId } }),
+      this.prisma.notification.deleteMany({ where: { userId } }),
+      this.prisma.invoice.deleteMany({ where: { studentId: userId } }),
+    ]);
+
+    return this.prisma.user.delete({
+      where: { id: userId },
+    });
+  }
+
+  async createUser(data: any) {
+    const hashedPassword = await bcrypt.hash(data.password, 10);
+    const enrollmentId =
+      data.enrollmentId || (await this.generateEnrollmentId(data.role));
+
+    return this.prisma.user.create({
+      data: {
+        ...data,
+        password: hashedPassword,
+        enrollmentId,
+        profileSlug: crypto.randomUUID(),
+      },
     });
   }
 }
