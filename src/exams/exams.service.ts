@@ -110,6 +110,9 @@ export class ExamsService {
   }
 
   async delete(id: string) {
-    return this.prisma.exam.delete({ where: { id } });
+    return this.prisma.$transaction([
+      this.prisma.examResult.deleteMany({ where: { examId: id } }),
+      this.prisma.exam.delete({ where: { id } })
+    ]);
   }
 }

@@ -184,11 +184,18 @@ let ExamsService = class ExamsService {
         });
     }
     async delete(id) {
-        return this.prisma.exam.delete({
-            where: {
-                id
-            }
-        });
+        return this.prisma.$transaction([
+            this.prisma.examResult.deleteMany({
+                where: {
+                    examId: id
+                }
+            }),
+            this.prisma.exam.delete({
+                where: {
+                    id
+                }
+            })
+        ]);
     }
     constructor(prisma){
         this.prisma = prisma;
