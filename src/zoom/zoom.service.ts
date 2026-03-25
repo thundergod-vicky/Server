@@ -61,7 +61,7 @@ export class ZoomService {
           mute_upon_entry: true,
           waiting_room: false,
           enforce_login: false,
-          auto_recording: 'local',
+          auto_recording: 'cloud', // Web SDK only supports cloud recording
         },
       }),
     });
