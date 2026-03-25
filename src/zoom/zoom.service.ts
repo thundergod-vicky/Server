@@ -1,27 +1,99 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
-import { createHmac } from 'crypto';
+import * as jwt from 'jsonwebtoken';
 
 @Injectable()
 export class ZoomService {
-  // For Zoom General Apps: Client ID = SDK Key, Client Secret = SDK Secret
-  private sdkKey = process.env.ZOOM_CLIENT_ID || '';
-  private sdkSecret = process.env.ZOOM_CLIENT_SECRET || '';
+  // Use ZOOM_SDK_KEY/SECRET if they are separate from OAuth credentials
+  private sdkKey = process.env.ZOOM_SDK_KEY || process.env.ZOOM_CLIENT_ID || '';
+  private sdkSecret =
+    process.env.ZOOM_SDK_SECRET || process.env.ZOOM_CLIENT_SECRET || '';
+  private accountId = process.env.ZOOM_ACCOUNT_ID || '';
+  private clientId = process.env.ZOOM_CLIENT_ID || '';
+  private clientSecret = process.env.ZOOM_CLIENT_SECRET || '';
+
+  private async getAccessToken(): Promise<string> {
+    const auth = Buffer.from(`${this.clientId}:${this.clientSecret}`).toString(
+      'base64',
+    );
+    const response = await fetch(
+      `https://zoom.us/oauth/token?grant_type=account_credentials&account_id=${this.accountId}`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+      },
+    );
+
+    const data: any = await response.json();
+    if (!response.ok) {
+      throw new Error(
+        `Failed to get Zoom access token: ${data.reason || data.error}`,
+      );
+    }
+
+    return data.access_token;
+  }
+
+  async createMeeting(topic: string, startTime: string, duration: number = 60) {
+    const accessToken = await this.getAccessToken();
+
+    const response = await fetch('https://api.zoom.us/v2/users/me/meetings', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        topic,
+        type: 2, // Scheduled meeting
+        start_time: startTime,
+        duration,
+        timezone: 'UTC',
+        settings: {
+          host_video: true,
+          participant_video: true,
+          join_before_host: true,
+          mute_upon_entry: true,
+          waiting_room: false,
+          enforce_login: false,
+          auto_recording: 'local',
+        },
+      }),
+    });
+
+    const data: any = await response.json();
+    if (!response.ok) {
+      throw new Error(`Failed to create Zoom meeting: ${data.message}`);
+    }
+
+    return {
+      meetingId: data.id.toString(),
+      joinUrl: data.join_url,
+      startUrl: data.start_url,
+    };
+  }
 
   generateSignature(meetingNumber: string, role: number): string {
     if (!this.sdkKey || !this.sdkSecret) {
       throw new Error(
-        'Zoom SDK credentials (ZOOM_CLIENT_ID / ZOOM_CLIENT_SECRET) are not configured.',
+        'Zoom SDK credentials (ZOOM_SDK_KEY / ZOOM_SDK_SECRET) are not configured.',
       );
     }
 
+    // Clean meeting number (remove any spaces)
+    const cleanedMeetingNumber = meetingNumber.toString().replace(/\s/g, '');
     const iat = Math.round(new Date().getTime() / 1000) - 30;
     const exp = iat + 60 * 60 * 2;
 
-    // Zoom Meeting SDK JWT payload (v5+ spec)
     const payload = {
-      appKey: this.sdkKey,
       sdkKey: this.sdkKey,
-      mn: meetingNumber,
+      appKey: this.sdkKey,
+      mn: cleanedMeetingNumber,
       role: role,
       iat: iat,
       exp: exp,
@@ -30,29 +102,16 @@ export class ZoomService {
 
     const header = { alg: 'HS256', typ: 'JWT' };
 
-    const encodedHeader = this.base64UrlEncode(JSON.stringify(header));
-    const encodedPayload = this.base64UrlEncode(JSON.stringify(payload));
-    const signingInput = `${encodedHeader}.${encodedPayload}`;
+    // Use jsonwebtoken for standard-compliant encoding
+    // Zoom SDK expects exactly this format
+    const signature = jwt.sign(payload, this.sdkSecret, {
+      algorithm: 'HS256',
+      header: header,
+    });
 
-    const signature = createHmac('sha256', this.sdkSecret)
-      .update(signingInput)
-      .digest('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-
-    const jwt = `${signingInput}.${signature}`;
     console.log(
-      `[ZoomService] Generated JWT for meeting ${meetingNumber} (role ${role}), sdkKey: ${this.sdkKey}`,
+      `[ZoomService] Generated signature for meeting ${cleanedMeetingNumber}, role: ${role}, using sdkKey: ${this.sdkKey.substring(0, 5)}...`,
     );
-    return jwt;
-  }
-
-  private base64UrlEncode(str: string): string {
-    return Buffer.from(str)
-      .toString('base64')
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
+    return signature;
   }
 }
