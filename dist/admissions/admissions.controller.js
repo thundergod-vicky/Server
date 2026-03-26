@@ -39,8 +39,27 @@ let AdmissionsController = class AdmissionsController {
     getAllAdmissions() {
         return this.admissionsService.getAllAdmissions();
     }
+    getAdmissionByStudent(studentId) {
+        return this.admissionsService.getAdmissionByStudentId(studentId);
+    }
+    async getPhoto(id, res) {
+        try {
+            const { stream, contentType } = await this.admissionsService.getPhotoStream(id);
+            res.set({
+                'Content-Type': contentType,
+                'Cache-Control': 'public, max-age=3600'
+            });
+            stream.pipe(res);
+        } catch (error) {
+            const message = error instanceof Error ? error.message : 'Photo not found';
+            res.status(404).send(message);
+        }
+    }
     approveAdmission(id, req) {
         return this.admissionsService.approveAdmission(id, req.user.id || req.user.userId);
+    }
+    rejectAdmission(id) {
+        return this.admissionsService.rejectAdmission(id);
     }
     constructor(admissionsService){
         this.admissionsService = admissionsService;
@@ -82,6 +101,26 @@ _ts_decorate([
     _ts_metadata("design:returntype", void 0)
 ], AdmissionsController.prototype, "getAllAdmissions", null);
 _ts_decorate([
+    (0, _common.Get)('student/:studentId'),
+    _ts_param(0, (0, _common.Param)('studentId')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
+], AdmissionsController.prototype, "getAdmissionByStudent", null);
+_ts_decorate([
+    (0, _common.Get)('photo/:id'),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_param(1, (0, _common.Res)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String,
+        typeof Response === "undefined" ? Object : Response
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdmissionsController.prototype, "getPhoto", null);
+_ts_decorate([
     (0, _common.Patch)(':id/approve'),
     _ts_param(0, (0, _common.Param)('id')),
     _ts_param(1, (0, _common.Req)()),
@@ -92,6 +131,15 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", void 0)
 ], AdmissionsController.prototype, "approveAdmission", null);
+_ts_decorate([
+    (0, _common.Patch)(':id/reject'),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String
+    ]),
+    _ts_metadata("design:returntype", void 0)
+], AdmissionsController.prototype, "rejectAdmission", null);
 AdmissionsController = _ts_decorate([
     (0, _common.Controller)('admissions'),
     (0, _common.UseGuards)(_jwtauthguard.JwtAuthGuard),

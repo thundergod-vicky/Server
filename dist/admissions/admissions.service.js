@@ -1,4 +1,4 @@
-"use strict";
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */ /* eslint-disable @typescript-eslint/no-unsafe-assignment */ "use strict";
 Object.defineProperty(exports, "__esModule", {
     value: true
 });
@@ -72,11 +72,27 @@ let AdmissionsService = class AdmissionsService {
         });
     }
     async getAllAdmissions() {
-        return this.prisma.admission.findMany({
+        const admissions = await this.prisma.admission.findMany({
             include: {
                 student: true
             }
         });
+        return Promise.all(admissions.map(async (admission)=>{
+            if (admission.photoUrl) {
+                try {
+                    const urlParts = admission.photoUrl.split('.amazonaws.com/');
+                    const key = urlParts.length > 1 ? urlParts[1] : admission.photoUrl;
+                    const { signedUrl } = await this.s3Service.createSignedUrl(key, 3600);
+                    return {
+                        ...admission,
+                        photoUrl: signedUrl
+                    };
+                } catch (error) {
+                    console.error('Failed to sign photo URL in list:', error);
+                }
+            }
+            return admission;
+        }));
     }
     async approveAdmission(id, approvedBy) {
         return this.prisma.admission.update({
@@ -89,6 +105,64 @@ let AdmissionsService = class AdmissionsService {
                 approvedAt: new Date()
             }
         });
+    }
+    async rejectAdmission(id) {
+        return this.prisma.admission.update({
+            where: {
+                id
+            },
+            data: {
+                status: 'REJECTED'
+            }
+        });
+    }
+    async getAdmissionByStudentId(studentId) {
+        const admission = await this.prisma.admission.findUnique({
+            where: {
+                studentId
+            },
+            include: {
+                student: {
+                    select: {
+                        name: true,
+                        email: true
+                    }
+                }
+            }
+        });
+        if (admission && admission.photoUrl) {
+            try {
+                // Extract key from full S3 URL if possible
+                const urlParts = admission.photoUrl.split('.amazonaws.com/');
+                const key = urlParts.length > 1 ? urlParts[1] : admission.photoUrl;
+                const { signedUrl } = await this.s3Service.createSignedUrl(key, 3600); // 1 hour
+                return {
+                    ...admission,
+                    photoUrl: signedUrl
+                };
+            } catch (error) {
+                console.error('Failed to sign photo URL:', error);
+            }
+        }
+        return admission;
+    }
+    async getPhotoStream(id) {
+        const admission = await this.prisma.admission.findUnique({
+            where: {
+                id
+            }
+        });
+        if (!admission || !admission.photoUrl) {
+            throw new Error('Photo not found');
+        }
+        const urlParts = admission.photoUrl.split('.amazonaws.com/');
+        const key = urlParts.length > 1 ? urlParts[1] : admission.photoUrl;
+        const stream = await this.s3Service.getFileStream(key);
+        const metadata = await this.s3Service.getFileMetadata(key);
+        return {
+            stream,
+            contentType: metadata.mimeType
+        };
     }
     constructor(prisma, s3Service){
         this.prisma = prisma;
