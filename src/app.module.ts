@@ -20,6 +20,7 @@ import { ClassSessionsModule } from './class-sessions/class-sessions.module';
 import { ZoomModule } from './zoom/zoom.module';
 import { BillingModule } from './billing/billing.module';
 import { ExamsModule } from './exams/exams.module';
+import { AdmissionsModule } from './admissions/admissions.module';
 
 @Module({
   imports: [
@@ -42,6 +43,7 @@ import { ExamsModule } from './exams/exams.module';
     ZoomModule,
     BillingModule,
     ExamsModule,
+    AdmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

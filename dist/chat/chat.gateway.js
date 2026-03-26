@@ -142,7 +142,9 @@ ChatGateway = _ts_decorate([
         cors: {
             origin: [
                 'http://localhost:3000',
-                'http://localhost:3001'
+                'http://localhost:3001',
+                'https://adhyayan-trial.netlify.app',
+                'https://adhyayan-backend-0eak.onrender.com'
             ],
             credentials: true
         }
