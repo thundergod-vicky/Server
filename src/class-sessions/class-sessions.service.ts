@@ -1,5 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unsafe-return */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -154,7 +152,12 @@ export class ClassSessionsService {
   }
 
   // Artifact Management
-  async addRecording(sessionId: string, title: string, url: string, passcode?: string) {
+  async addRecording(
+    sessionId: string,
+    title: string,
+    url: string,
+    passcode?: string,
+  ) {
     return this.prisma.sessionRecording.create({
       data: { sessionId, title, url, passcode },
     });
@@ -171,7 +174,12 @@ export class ClassSessionsService {
     return this.prisma.sessionRecording.delete({ where: { id } });
   }
 
-  async addAttachment(sessionId: string, title: string, url: string, type: string) {
+  async addAttachment(
+    sessionId: string,
+    title: string,
+    url: string,
+    type: string,
+  ) {
     return this.prisma.sessionAttachment.create({
       data: { sessionId, title, url, type },
     });
@@ -211,24 +219,34 @@ export class ClassSessionsService {
       );
 
       if (walk && walk.recordings && walk.recordings.length > 0) {
-        const syncedRecordings = [];
+        const syncedRecordings: any[] = [];
         for (const rec of walk.recordings) {
-          // Create a new SessionRecording if it doesn't exist for this URL
-          let existingRec = await this.prisma.sessionRecording.findFirst({
-            where: { sessionId: id, url: rec.url }
-          });
-
-          if (!existingRec) {
-            existingRec = await this.prisma.sessionRecording.create({
-              data: {
+          // Use upsert to prevent duplicate recordings for the same URL in this session
+          const recording = await this.prisma.sessionRecording.upsert({
+            where: {
+              sessionId_url: {
                 sessionId: id,
-                title: rec.file_type === 'SHARE_URL' ? 'Zoom Share Link' : `Recording Part ${walk.recordings.indexOf(rec) + 1} - ${new Date(rec.recording_start).toLocaleTimeString()}`,
                 url: rec.url,
-                passcode: walk.password,
-              }
-            });
-          }
-          syncedRecordings.push(existingRec);
+              },
+            },
+            create: {
+              sessionId: id,
+              title:
+                rec.file_type === 'SHARE_URL'
+                  ? 'Zoom Share Link'
+                  : `Recording Part ${
+                      walk.recordings.indexOf(rec) + 1
+                    } - ${new Date(
+                      rec.recording_start || new Date(),
+                    ).toLocaleTimeString()}`,
+              url: rec.url,
+              passcode: walk.password,
+            },
+            update: {
+              passcode: walk.password, // Update passcode if it changed
+            },
+          });
+          syncedRecordings.push(recording);
         }
 
         // Also update the legacy fields with the first recording for backward compatibility
@@ -245,7 +263,7 @@ export class ClassSessionsService {
         return {
           url: walk.recordings[0].url,
           passcode: walk.password,
-          recordings: syncedRecordings
+          recordings: syncedRecordings,
         };
       } else {
         console.log(

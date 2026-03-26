@@ -1,9 +1,54 @@
-/* eslint-disable @typescript-eslint/no-unsafe-call */
-/* eslint-disable @typescript-eslint/no-unsafe-member-access */
-/* eslint-disable @typescript-eslint/no-unsafe-assignment */
-/* eslint-disable @typescript-eslint/no-unsafe-return */
 import { Injectable } from '@nestjs/common';
 import * as jwt from 'jsonwebtoken';
+
+export interface ZoomRecordingFile {
+  id: string;
+  file_type: string;
+  play_url?: string;
+  download_url?: string;
+  file_size?: number;
+  recording_start?: string;
+  recording_end?: string;
+}
+
+export interface ZoomRecordingResponse {
+  recording_files: ZoomRecordingFile[];
+  password?: string;
+  share_url?: string;
+  start_time?: string;
+}
+
+export interface SyncedRecording {
+  url: string;
+  id: string;
+  file_type: string;
+  file_size?: number;
+  recording_start?: string;
+  recording_end?: string;
+}
+
+export interface ZoomAccessTokenResponse {
+  access_token: string;
+  token_type: string;
+  expires_in: number;
+}
+
+export interface ZoomMeetingInstance {
+  uuid: string;
+  start_time: string;
+}
+
+export interface ZoomMeetingInstancesResponse {
+  meetings: ZoomMeetingInstance[];
+}
+
+export interface ZoomMeetingResponse {
+  id: number;
+  join_url: string;
+  start_url: string;
+  password?: string;
+  message?: string;
+}
 
 @Injectable()
 export class ZoomService {
@@ -29,10 +74,13 @@ export class ZoomService {
       },
     );
 
-    const data: any = await response.json();
+    const data = (await response.json()) as ZoomAccessTokenResponse & {
+      reason?: string;
+      error?: string;
+    };
     if (!response.ok) {
       throw new Error(
-        `Failed to get Zoom access token: ${data.reason || data.error}`,
+        `Failed to get Zoom access token: ${data.reason || data.error || 'Unknown error'}`,
       );
     }
 
@@ -66,9 +114,11 @@ export class ZoomService {
       }),
     });
 
-    const data: any = await response.json();
+    const data = (await response.json()) as ZoomMeetingResponse;
     if (!response.ok) {
-      throw new Error(`Failed to create Zoom meeting: ${data.message}`);
+      throw new Error(
+        `Failed to create Zoom meeting: ${data.message || 'Unknown error'}`,
+      );
     }
 
     return {
@@ -115,14 +165,19 @@ export class ZoomService {
     return signature;
   }
 
-  async getMeetingRecording(meetingId: string) {
+  async getMeetingRecording(
+    meetingId: string,
+  ): Promise<{ recordings: SyncedRecording[]; password: string } | null> {
     const accessToken = await this.getAccessToken();
 
     // Sanitize meeting ID (Zoom numeric ID should not have spaces)
     const sanitizedId = meetingId.replace(/\s/g, '');
 
-    const response = await fetch(
-      `https://api.zoom.us/v2/meetings/${sanitizedId}/recordings`,
+    // 1. Try to get all instances for this meeting ID
+    // Note: Past instances are identified by UUIDs. If a meeting was stopped and restarted, 
+    // it creates a new instance.
+    const instancesResponse = await fetch(
+      `https://api.zoom.us/v2/past_meetings/${sanitizedId}/instances`,
       {
         method: 'GET',
         headers: {
@@ -132,51 +187,85 @@ export class ZoomService {
       },
     );
 
-    const data: any = await response.json();
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null; // Recording not found yet
+    let uuids = [sanitizedId]; // Fallback to the numeric ID if no instances found
+    if (instancesResponse.ok) {
+      const instanceData =
+        (await instancesResponse.json()) as ZoomMeetingInstancesResponse;
+      if (instanceData.meetings && instanceData.meetings.length > 0) {
+        // Double-encode UUIDs that start with / or contain // as per Zoom requirements
+        uuids = instanceData.meetings.map((m: ZoomMeetingInstance) => {
+          let uuid = m.uuid;
+          if (uuid.startsWith('/') || uuid.includes('//')) {
+            uuid = encodeURIComponent(encodeURIComponent(uuid));
+          }
+          return uuid;
+        });
       }
-      throw new Error(`Failed to fetch Zoom recording: ${data.message}`);
     }
 
-    // Return the first recording file that is a video and has a play_url
+    const allRecordings: SyncedRecording[] = [];
+    let commonPasscode = '';
+
+    // 2. Fetch recordings for all found UUIDs (limit to latest 5 instances to be safe)
+    for (const uuid of uuids.slice(0, 5)) {
+      const response = await fetch(
+        `https://api.zoom.us/v2/meetings/${uuid}/recordings`,
+        {
+          method: 'GET',
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+            'Content-Type': 'application/json',
+          },
+        },
+      );
+
+      if (!response.ok) continue;
+
+      const data = (await response.json()) as ZoomRecordingResponse;
+      
+      if (data.recording_files && data.recording_files.length > 0) {
+        if (data.password && !commonPasscode) {
+          commonPasscode = data.password;
+        }
+
+        const mp4Files = data.recording_files.filter(
+          (f: ZoomRecordingFile) =>
+            f.file_type === 'MP4' && (f.play_url || f.download_url),
+        );
+
+        const instanceRecordings: SyncedRecording[] = mp4Files.map(
+          (f: ZoomRecordingFile) => ({
+            url: (f.play_url || f.download_url) as string,
+            id: f.id,
+            file_type: f.file_type,
+            file_size: f.file_size,
+            recording_start: f.recording_start,
+            recording_end: f.recording_end,
+          }),
+        );
+        allRecordings.push(...instanceRecordings);
+      }
+    }
+
+    if (allRecordings.length === 0) {
+      return null;
+    }
+
+    // Sort by recording start time
+    allRecordings.sort((a, b) => {
+      return (
+        new Date(a.recording_start || 0).getTime() -
+        new Date(b.recording_start || 0).getTime()
+      );
+    });
+
     console.log(
-      `Zoom Recording Data for ${meetingId}:`,
-      JSON.stringify(data, null, 2),
+      `Aggregated ${allRecordings.length} recording files from multiple instances for ${meetingId}`,
     );
 
-    const mp4Files =
-      data.recording_files?.filter(
-        (f: any) => f.file_type === 'MP4' && (f.play_url || f.download_url),
-      ) || [];
-
-    const recordings = mp4Files.map((f: any) => ({
-      url: f.play_url || f.download_url,
-      id: f.id,
-      file_type: f.file_type,
-      file_size: f.file_size,
-      recording_start: f.recording_start,
-      recording_end: f.recording_end,
-    }));
-
-    // If no MP4 files found, fallback to share_url
-    if (recordings.length === 0 && data.share_url) {
-      recordings.push({
-        url: data.share_url,
-        id: 'share_url',
-        file_type: 'SHARE_URL',
-        file_size: 0,
-        recording_start: data.start_time,
-        recording_end: data.start_time,
-      });
-    }
-
-    console.log(`Found ${recordings.length} recording files for ${meetingId}`);
-
     return {
-      recordings,
-      password: data.password || '',
+      recordings: allRecordings,
+      password: commonPasscode,
     };
   }
 }

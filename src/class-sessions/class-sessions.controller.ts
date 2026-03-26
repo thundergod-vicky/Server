@@ -103,32 +103,13 @@ export class ClassSessionsController {
     return this.service.addRecording(id, data.title, data.url, data.passcode);
   }
 
-  @Get('test-sync-algebra')
-  async testSyncAlgebra() {
-    const session = await this.service['prisma'].classSession.findFirst({
-      where: { title: 'Algebra 102' },
-      orderBy: { createdAt: 'desc' },
-      include: { recordings: true }
-    });
-    if (!session) return "No session";
-    const rawData = await this.service['zoomService'].getMeetingRecording(session.meetingId);
-    return { session, rawData };
-  }
-
   @Patch('recordings/:recordingId')
-
   @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
   updateRecording(
     @Param('recordingId') recordingId: string,
     @Body() data: { title: string },
   ) {
     return this.service.updateRecording(recordingId, data.title);
-  }
-
-  @Delete('recordings/:recordingId')
-  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
-  removeRecording(@Param('recordingId') recordingId: string) {
-    return this.service.removeRecording(recordingId);
   }
 
   @Post(':id/attachments')

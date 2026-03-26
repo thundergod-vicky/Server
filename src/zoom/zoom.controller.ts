@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-call */
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
@@ -92,7 +93,7 @@ export class ZoomController {
       const result = await this.zoomService.getMeetingRecording(meetingId);
       return { success: true, result };
     } catch (err: any) {
-      return { success: false, error: err.message || err.toString() };
+      return { success: false, error: err.message || err?.toString() };
     }
   }
 }
