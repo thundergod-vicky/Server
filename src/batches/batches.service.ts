@@ -26,6 +26,7 @@ export class BatchesService {
       include: {
         teachers: { select: { id: true, name: true, email: true } },
         students: { select: { id: true, name: true, email: true } },
+        subjects: true,
         _count: { select: { students: true } },
       },
     });
@@ -37,6 +38,16 @@ export class BatchesService {
       include: {
         teachers: { select: { id: true, name: true, email: true } },
         students: { select: { id: true, name: true, email: true } },
+        subjects: true,
+        sessions: {
+          include: {
+            subject: true,
+            teacher: { select: { id: true, name: true } },
+            recordings: true,
+            attachments: true,
+          },
+          orderBy: { date: "asc" },
+        },
       },
     });
 
@@ -95,6 +106,7 @@ export class BatchesService {
       },
       include: {
         teachers: { select: { id: true, name: true, email: true } },
+        subjects: true,
       },
     });
   }
@@ -107,6 +119,7 @@ export class BatchesService {
         },
       },
       include: {
+        subjects: true,
         _count: { select: { students: true } },
       },
     });

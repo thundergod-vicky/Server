@@ -8,13 +8,24 @@ import {
   Query,
   Request,
   UseGuards,
+  Patch,
 } from '@nestjs/common';
 import { ClassSessionsService } from './class-sessions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
+import { Request as ExpressRequest } from 'express';
 
+interface RequestWithUser extends ExpressRequest {
+  user: {
+    id: string;
+    userId?: string;
+    sub?: string;
+    email: string;
+    role: Role;
+  };
+}
 @Controller('class-sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClassSessionsController {
@@ -29,6 +40,7 @@ export class ClassSessionsController {
       type: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
       teacherId: string;
       batchId: string;
+      subjectId?: string;
       date: string;
       startTime: string;
       endTime: string;
@@ -51,21 +63,86 @@ export class ClassSessionsController {
 
   @Get('my-sessions')
   @Roles(Role.TEACHER)
-  findMyTeacherSessions(@Request() req: any) {
-    const userId = req.user.id || req.user.userId || req.user.sub;
+  findMyTeacherSessions(@Request() req: RequestWithUser) {
+    const userId = req.user.id;
     return this.service.findByTeacher(userId);
   }
 
   @Get('student-sessions')
   @Roles(Role.STUDENT, Role.PARENT)
-  findMyStudentSessions(@Request() req: any) {
-    const userId = req.user.id || req.user.userId || req.user.sub;
+  findMyStudentSessions(@Request() req: RequestWithUser) {
+    const userId = req.user.id;
     return this.service.findByStudent(userId);
+  }
+
+  @Get(':id/recording')
+  @Roles(
+    Role.ADMIN,
+    Role.ACADEMIC_OPERATIONS,
+    Role.TEACHER,
+    Role.STUDENT,
+    Role.PARENT,
+  )
+  syncRecording(@Param('id') id: string) {
+    return this.service.syncRecording(id);
   }
 
   @Delete(':id')
   @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS)
   remove(@Param('id') id: string) {
     return this.service.delete(id);
+  }
+
+  // Artifacts
+  @Post(':id/recordings')
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
+  addRecording(
+    @Param('id') id: string,
+    @Body() data: { title: string; url: string; passcode?: string },
+  ) {
+    return this.service.addRecording(id, data.title, data.url, data.passcode);
+  }
+
+  @Get('test-sync-algebra')
+  async testSyncAlgebra() {
+    const session = await this.service['prisma'].classSession.findFirst({
+      where: { title: 'Algebra 102' },
+      orderBy: { createdAt: 'desc' },
+      include: { recordings: true }
+    });
+    if (!session) return "No session";
+    const rawData = await this.service['zoomService'].getMeetingRecording(session.meetingId);
+    return { session, rawData };
+  }
+
+  @Patch('recordings/:recordingId')
+
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
+  updateRecording(
+    @Param('recordingId') recordingId: string,
+    @Body() data: { title: string },
+  ) {
+    return this.service.updateRecording(recordingId, data.title);
+  }
+
+  @Delete('recordings/:recordingId')
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
+  removeRecording(@Param('recordingId') recordingId: string) {
+    return this.service.removeRecording(recordingId);
+  }
+
+  @Post(':id/attachments')
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
+  addAttachment(
+    @Param('id') id: string,
+    @Body() data: { title: string; url: string; type: string },
+  ) {
+    return this.service.addAttachment(id, data.title, data.url, data.type);
+  }
+
+  @Delete('attachments/:attachmentId')
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
+  removeAttachment(@Param('attachmentId') attachmentId: string) {
+    return this.service.removeAttachment(attachmentId);
   }
 }

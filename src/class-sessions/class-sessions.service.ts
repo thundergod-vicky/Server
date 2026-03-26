@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -16,6 +18,7 @@ export class ClassSessionsService {
     type: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
     teacherId: string;
     batchId: string;
+    subjectId?: string;
     date: string;
     startTime: string;
     endTime: string;
@@ -53,6 +56,7 @@ export class ClassSessionsService {
         type: data.type,
         teacherId: data.teacherId,
         batchId: data.batchId,
+        subjectId: data.subjectId || null,
         date: new Date(data.date),
         startTime: data.startTime,
         endTime: data.endTime,
@@ -107,6 +111,9 @@ export class ClassSessionsService {
       include: {
         teacher: { select: { id: true, name: true, profileImage: true } },
         batch: { select: { id: true, name: true } },
+        subject: true,
+        recordings: true,
+        attachments: true,
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
@@ -118,6 +125,9 @@ export class ClassSessionsService {
       include: {
         batch: { select: { id: true, name: true } },
         teacher: { select: { id: true, name: true, profileImage: true } },
+        subject: true,
+        recordings: true,
+        attachments: true,
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
@@ -135,9 +145,121 @@ export class ClassSessionsService {
       include: {
         teacher: { select: { id: true, name: true, profileImage: true } },
         batch: { select: { id: true, name: true } },
+        subject: true,
+        recordings: true,
+        attachments: true,
       },
       orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
     });
+  }
+
+  // Artifact Management
+  async addRecording(sessionId: string, title: string, url: string, passcode?: string) {
+    return this.prisma.sessionRecording.create({
+      data: { sessionId, title, url, passcode },
+    });
+  }
+
+  async updateRecording(id: string, title: string) {
+    return this.prisma.sessionRecording.update({
+      where: { id },
+      data: { title },
+    });
+  }
+
+  async removeRecording(id: string) {
+    return this.prisma.sessionRecording.delete({ where: { id } });
+  }
+
+  async addAttachment(sessionId: string, title: string, url: string, type: string) {
+    return this.prisma.sessionAttachment.create({
+      data: { sessionId, title, url, type },
+    });
+  }
+
+  async removeAttachment(id: string) {
+    return this.prisma.sessionAttachment.delete({ where: { id } });
+  }
+
+  /**
+   * Sync recording from Zoom
+   */
+  async syncRecording(id: string) {
+    const session = await this.prisma.classSession.findUnique({
+      where: { id },
+    });
+
+    if (!session || !session.meetingId || !session.isOnline) {
+      return null;
+    }
+
+    // Return if already synced and has passcode
+    if (session.recordingUrl && session.recordingPasscode) {
+      return {
+        url: session.recordingUrl,
+        passcode: session.recordingPasscode,
+      };
+    }
+
+    // If meeting is past, try to fetch recording from Zoom
+    try {
+      console.log(
+        `[ClassSessionsService] Syncing recording for session ${id}, meetingId: ${session.meetingId}`,
+      );
+      const walk = await this.zoomService.getMeetingRecording(
+        session.meetingId,
+      );
+
+      if (walk && walk.recordings && walk.recordings.length > 0) {
+        const syncedRecordings = [];
+        for (const rec of walk.recordings) {
+          // Create a new SessionRecording if it doesn't exist for this URL
+          let existingRec = await this.prisma.sessionRecording.findFirst({
+            where: { sessionId: id, url: rec.url }
+          });
+
+          if (!existingRec) {
+            existingRec = await this.prisma.sessionRecording.create({
+              data: {
+                sessionId: id,
+                title: rec.file_type === 'SHARE_URL' ? 'Zoom Share Link' : `Recording Part ${walk.recordings.indexOf(rec) + 1} - ${new Date(rec.recording_start).toLocaleTimeString()}`,
+                url: rec.url,
+                passcode: walk.password,
+              }
+            });
+          }
+          syncedRecordings.push(existingRec);
+        }
+
+        // Also update the legacy fields with the first recording for backward compatibility
+        if (walk.recordings.length > 0) {
+          await this.prisma.classSession.update({
+            where: { id },
+            data: {
+              recordingUrl: walk.recordings[0].url,
+              recordingPasscode: walk.password,
+            },
+          });
+        }
+
+        return {
+          url: walk.recordings[0].url,
+          passcode: walk.password,
+          recordings: syncedRecordings
+        };
+      } else {
+        console.log(
+          `[ClassSessionsService] No recording found for meeting ${session.meetingId}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        '[ClassSessionsService] Failed to sync Zoom recording',
+        err,
+      );
+    }
+
+    return null;
   }
 
   async delete(id: string) {

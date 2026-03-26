@@ -114,4 +114,69 @@ export class ZoomService {
     );
     return signature;
   }
+
+  async getMeetingRecording(meetingId: string) {
+    const accessToken = await this.getAccessToken();
+
+    // Sanitize meeting ID (Zoom numeric ID should not have spaces)
+    const sanitizedId = meetingId.replace(/\s/g, '');
+
+    const response = await fetch(
+      `https://api.zoom.us/v2/meetings/${sanitizedId}/recordings`,
+      {
+        method: 'GET',
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          'Content-Type': 'application/json',
+        },
+      },
+    );
+
+    const data: any = await response.json();
+    if (!response.ok) {
+      if (response.status === 404) {
+        return null; // Recording not found yet
+      }
+      throw new Error(`Failed to fetch Zoom recording: ${data.message}`);
+    }
+
+    // Return the first recording file that is a video and has a play_url
+    console.log(
+      `Zoom Recording Data for ${meetingId}:`,
+      JSON.stringify(data, null, 2),
+    );
+
+    const mp4Files =
+      data.recording_files?.filter(
+        (f: any) => f.file_type === 'MP4' && (f.play_url || f.download_url),
+      ) || [];
+
+    const recordings = mp4Files.map((f: any) => ({
+      url: f.play_url || f.download_url,
+      id: f.id,
+      file_type: f.file_type,
+      file_size: f.file_size,
+      recording_start: f.recording_start,
+      recording_end: f.recording_end,
+    }));
+
+    // If no MP4 files found, fallback to share_url
+    if (recordings.length === 0 && data.share_url) {
+      recordings.push({
+        url: data.share_url,
+        id: 'share_url',
+        file_type: 'SHARE_URL',
+        file_size: 0,
+        recording_start: data.start_time,
+        recording_end: data.start_time,
+      });
+    }
+
+    console.log(`Found ${recordings.length} recording files for ${meetingId}`);
+
+    return {
+      recordings,
+      password: data.password || '',
+    };
+  }
 }

@@ -1,6 +1,14 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Controller, Post, Get, Body, UseGuards, Query } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Query,
+  Param,
+} from '@nestjs/common';
 import { ZoomService } from './zoom.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
@@ -76,5 +84,15 @@ export class ZoomController {
       message:
         'Check if sdkKey matches your Zoom Marketplace Client ID (standard length is 22).',
     };
+  }
+
+  @Get('debug-recording/:meetingId')
+  async debugRecording(@Param('meetingId') meetingId: string) {
+    try {
+      const result = await this.zoomService.getMeetingRecording(meetingId);
+      return { success: true, result };
+    } catch (err: any) {
+      return { success: false, error: err.message || err.toString() };
+    }
   }
 }
