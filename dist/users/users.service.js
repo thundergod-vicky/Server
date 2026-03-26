@@ -106,7 +106,8 @@ let UsersService = class UsersService {
                     orderBy: {
                         createdAt: 'desc'
                     }
-                }
+                },
+                admission: true
             }
         });
         if (user) {
@@ -192,7 +193,8 @@ let UsersService = class UsersService {
                             orderBy: {
                                 createdAt: 'desc'
                             }
-                        }
+                        },
+                        admission: true
                     }
                 });
             }
@@ -265,7 +267,8 @@ let UsersService = class UsersService {
                     orderBy: {
                         createdAt: 'desc'
                     }
-                }
+                },
+                admission: true
             }
         });
         if (user) {
@@ -366,7 +369,8 @@ let UsersService = class UsersService {
                             orderBy: {
                                 createdAt: 'desc'
                             }
-                        }
+                        },
+                        admission: true
                     }
                 });
             }

@@ -30,6 +30,7 @@ const _classsessionsmodule = require("./class-sessions/class-sessions.module");
 const _zoommodule = require("./zoom/zoom.module");
 const _billingmodule = require("./billing/billing.module");
 const _examsmodule = require("./exams/exams.module");
+const _admissionsmodule = require("./admissions/admissions.module");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -59,7 +60,8 @@ AppModule = _ts_decorate([
             _classsessionsmodule.ClassSessionsModule,
             _zoommodule.ZoomModule,
             _billingmodule.BillingModule,
-            _examsmodule.ExamsModule
+            _examsmodule.ExamsModule,
+            _admissionsmodule.AdmissionsModule
         ],
         controllers: [
             _appcontroller.AppController

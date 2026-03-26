@@ -137,6 +137,7 @@ model User {
   assignedExams   Exam[]         @relation("AssignedExams")
   createdExams    Exam[]         @relation("CreatedExams")
   examResults     ExamResult[]
+  admission       Admission?
 }
 
 model Batch {
@@ -536,4 +537,62 @@ model ExamResult {
   submittedAt DateTime @default(now())
 
   @@unique([examId, studentId])
+}
+
+enum AdmissionStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum Stream {
+  FOUNDATION
+  NEET
+  JEE
+  NONE
+}
+
+enum Caste {
+  GENERAL
+  SC
+  ST
+  OBC
+  EWS
+}
+
+model Admission {
+  id                    String   @id @default(cuid())
+  studentId             String   @unique
+  student               User     @relation(fields: [studentId], references: [id])
+  
+  admissionDate         DateTime?
+  formNumber            String   @unique @default(cuid())
+  enrollmentNumber      String?  @unique
+  
+  studentName           String
+  fatherName            String
+  motherName            String
+  email                 String
+  address               String
+  dateOfBirth           DateTime
+  contactNumber         String
+  alternateContact      String?
+  
+  studentClass          String
+  stream                Stream   @default(NONE)
+  course                String   
+  
+  batchCode             String?  
+  schoolName            String
+  board                 String
+  caste                 Caste    @default(GENERAL)
+  photoUrl              String?
+  
+  status                AdmissionStatus @default(PENDING)
+  
+  approvedById          String?  
+  approvedAt            DateTime?
+
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
 }
