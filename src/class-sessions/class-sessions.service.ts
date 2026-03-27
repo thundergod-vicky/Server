@@ -113,7 +113,7 @@ export class ClassSessionsService {
         recordings: true,
         attachments: true,
       },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
   }
 
@@ -127,7 +127,7 @@ export class ClassSessionsService {
         recordings: true,
         attachments: true,
       },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
   }
 
@@ -147,7 +147,7 @@ export class ClassSessionsService {
         recordings: true,
         attachments: true,
       },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
   }
 
