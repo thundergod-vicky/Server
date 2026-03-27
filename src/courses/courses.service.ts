@@ -29,6 +29,8 @@ export class CoursesService {
             lessons: true,
           },
         },
+        batch: true,
+        subject: true,
       },
     });
   }
@@ -46,6 +48,8 @@ export class CoursesService {
           },
           orderBy: { order: 'asc' },
         },
+        batch: true,
+        subject: true,
       },
     });
   }

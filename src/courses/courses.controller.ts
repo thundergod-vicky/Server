@@ -21,10 +21,21 @@ export class CoursesController {
     const isPowerUser = req.user.role === 'ADMIN' || req.user.role === 'ACADEMIC_OPERATIONS';
     const teacherId = (isPowerUser && createCourseDto.teacherId) ? createCourseDto.teacherId : req.user.id;
     
-    return this.coursesService.create({
-      ...createCourseDto,
+    const { batchId, subjectId, teacherId: _, ...rest } = createCourseDto;
+    
+    const data: any = {
+      ...rest,
       teacher: { connect: { id: teacherId } },
-    });
+    };
+
+    if (batchId) {
+      data.batch = { connect: { id: batchId } };
+    }
+    if (subjectId) {
+      data.subject = { connect: { id: subjectId } };
+    }
+
+    return this.coursesService.create(data);
   }
 
   @Get()

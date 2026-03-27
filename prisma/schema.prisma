@@ -151,6 +151,7 @@ model Subject {
 
   @@unique([name, batchId])
   @@index([batchId])
+  courses   Course[] @relation("SubjectCourses")
 }
 
 model Batch {
@@ -164,6 +165,7 @@ model Batch {
   exams       Exam[]
   createdAt   DateTime       @default(now())
   updatedAt   DateTime       @updatedAt
+  courses     Course[]       @relation("BatchCourses")
 }
 
 enum SessionType {
@@ -255,6 +257,11 @@ model Course {
   assignments CourseAssignment[]
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
+
+  batchId     String?
+  batch       Batch?             @relation("BatchCourses", fields: [batchId], references: [id])
+  subjectId   String?
+  subject     Subject?           @relation("SubjectCourses", fields: [subjectId], references: [id])
 }
 
 model Enrollment {
