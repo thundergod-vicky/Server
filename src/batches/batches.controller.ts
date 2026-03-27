@@ -40,10 +40,17 @@ export class BatchesController {
   }
 
   @Get()
-  @ApiOperation({ summary: 'Get all batches (Admin only)' })
-  findAll(@Request() req) {
-    this.checkAdmin(req);
-    return this.batchesService.findAll();
+  @ApiOperation({ summary: 'Get all batches (Role-aware)' })
+  findAll(@Request() req: any) {
+    const user = req.user as { userId: string; role: string };
+    if (user.role === 'ADMIN' || user.role === 'ACADEMIC_OPERATIONS') {
+      return this.batchesService.findAll();
+    } else if (user.role === 'TEACHER') {
+      return this.batchesService.findByTeacher(user.userId);
+    } else if (user.role === 'STUDENT') {
+      return this.batchesService.findByStudent(user.userId);
+    }
+    throw new ForbiddenException('Access denied for this role');
   }
 
   @Get('my-batches')

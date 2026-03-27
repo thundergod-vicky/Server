@@ -22,11 +22,17 @@ export class ClassSessionsService {
     endTime: string;
     venue?: string;
     isOnline?: boolean;
+    meetingUrl?: string;
+    meetingId?: string;
+    meetingPasscode?: string;
   }) {
-    let meetingUrl: string | null = null;
-    let meetingId: string | null = null;
+    const meetingUrl: string | null = data.meetingUrl || null;
+    const meetingId: string | null = data.meetingId || null;
+    const meetingPasscode: string | null = data.meetingPasscode || null;
 
-    if (data.isOnline) {
+    /* 
+    // Auto-generation disabled as per user request to favor manual entry
+    if (data.isOnline && !meetingUrl) {
       const start = new Date(`${data.date.split('T')[0]}T${data.startTime}:00`);
       const end = new Date(`${data.date.split('T')[0]}T${data.endTime}:00`);
       const duration = Math.max(
@@ -47,6 +53,7 @@ export class ClassSessionsService {
         console.error('Failed to create zoom meeting for class session', err);
       }
     }
+    */
 
     const session = await this.prisma.classSession.create({
       data: {
@@ -62,6 +69,7 @@ export class ClassSessionsService {
         isOnline: data.isOnline || false,
         meetingUrl: meetingUrl,
         meetingId: meetingId,
+        meetingPasscode: meetingPasscode,
       },
       include: {
         teacher: { select: { id: true, name: true } },
@@ -88,6 +96,54 @@ export class ClassSessionsService {
     }
 
     return session;
+  }
+
+  async update(
+    id: string,
+    data: {
+      title?: string;
+      type?: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
+      teacherId?: string;
+      batchId?: string;
+      subjectId?: string;
+      date?: string;
+      startTime?: string;
+      endTime?: string;
+      venue?: string;
+      isOnline?: boolean;
+      meetingUrl?: string;
+      meetingId?: string;
+      meetingPasscode?: string;
+    },
+  ) {
+    return this.prisma.classSession.update({
+      where: { id },
+      data: {
+        ...(data.title && { title: data.title }),
+        ...(data.type && { type: data.type }),
+        ...(data.teacherId && { teacherId: data.teacherId }),
+        ...(data.batchId && { batchId: data.batchId }),
+        ...(data.subjectId !== undefined && {
+          subjectId: data.subjectId || null,
+        }),
+        ...(data.date && { date: new Date(data.date) }),
+        ...(data.startTime && { startTime: data.startTime }),
+        ...(data.endTime && { endTime: data.endTime }),
+        ...(data.venue !== undefined && { venue: data.venue }),
+        ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
+        ...(data.meetingUrl !== undefined && { meetingUrl: data.meetingUrl }),
+        ...(data.meetingId !== undefined && { meetingId: data.meetingId }),
+        ...(data.meetingPasscode !== undefined && {
+          meetingPasscode: data.meetingPasscode,
+        }),
+      },
+    });
+  }
+
+  async findOne(id: string) {
+    return this.prisma.classSession.findUnique({
+      where: { id },
+    });
   }
 
   async findAll(filters?: {

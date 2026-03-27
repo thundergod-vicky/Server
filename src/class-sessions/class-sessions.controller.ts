@@ -9,6 +9,7 @@ import {
   Request,
   UseGuards,
   Patch,
+  ForbiddenException,
 } from '@nestjs/common';
 import { ClassSessionsService } from './class-sessions.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
@@ -46,6 +47,9 @@ export class ClassSessionsController {
       endTime: string;
       venue?: string;
       isOnline?: boolean;
+      meetingUrl?: string;
+      meetingId?: string;
+      meetingPasscode?: string;
     },
   ) {
     return this.service.create(body);
@@ -85,6 +89,37 @@ export class ClassSessionsController {
   )
   syncRecording(@Param('id') id: string) {
     return this.service.syncRecording(id);
+  }
+
+  @Patch(':id')
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS, Role.TEACHER)
+  async update(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+    @Body()
+    body: {
+      title?: string;
+      type?: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
+      teacherId?: string;
+      batchId?: string;
+      subjectId?: string;
+      date?: string;
+      startTime?: string;
+      endTime?: string;
+      venue?: string;
+      isOnline?: boolean;
+      meetingUrl?: string;
+      meetingId?: string;
+      meetingPasscode?: string;
+    },
+  ) {
+    if (req.user.role === Role.TEACHER) {
+      const session = await this.service.findOne(id);
+      if (!session || session.teacherId !== req.user.id) {
+        throw new ForbiddenException('You can only edit your own sessions');
+      }
+    }
+    return this.service.update(id, body);
   }
 
   @Delete(':id')
