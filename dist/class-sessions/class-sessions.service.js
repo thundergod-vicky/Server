@@ -111,6 +111,9 @@ let ClassSessionsService = class ClassSessionsService {
             },
             orderBy: [
                 {
+                    createdAt: 'desc'
+                },
+                {
                     date: 'asc'
                 },
                 {
@@ -140,6 +143,9 @@ let ClassSessionsService = class ClassSessionsService {
                 }
             },
             orderBy: [
+                {
+                    createdAt: 'desc'
+                },
                 {
                     date: 'asc'
                 },
@@ -186,6 +192,9 @@ let ClassSessionsService = class ClassSessionsService {
                 }
             },
             orderBy: [
+                {
+                    createdAt: 'desc'
+                },
                 {
                     date: 'asc'
                 },

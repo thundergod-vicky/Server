@@ -108,7 +108,7 @@ export class ClassSessionsService {
         teacher: { select: { id: true, name: true, profileImage: true } },
         batch: { select: { id: true, name: true } },
       },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
   }
 
@@ -119,7 +119,7 @@ export class ClassSessionsService {
         batch: { select: { id: true, name: true } },
         teacher: { select: { id: true, name: true, profileImage: true } },
       },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
   }
 
@@ -136,7 +136,7 @@ export class ClassSessionsService {
         teacher: { select: { id: true, name: true, profileImage: true } },
         batch: { select: { id: true, name: true } },
       },
-      orderBy: [{ date: 'asc' }, { startTime: 'asc' }],
+      orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
   }
 
