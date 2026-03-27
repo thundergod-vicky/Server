@@ -22,6 +22,7 @@
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.996.0",
+    "@aws-sdk/cloudfront-signer": "^3.1012.0",
     "@aws-sdk/lib-storage": "^3.998.0",
     "@aws-sdk/s3-request-presigner": "^3.996.0",
     "@nestjs/common": "^11.0.1",
@@ -64,8 +65,8 @@
     "@nestjs/cli": "^11.0.0",
     "@nestjs/schematics": "^11.0.0",
     "@nestjs/testing": "^11.0.1",
-    "@swc/cli": "^0.7.10",
-    "@swc/core": "^1.15.11",
+    "@swc/cli": "^0.8.0",
+    "@swc/core": "^1.15.21",
     "@types/bcrypt": "^6.0.0",
     "@types/express": "^5.0.0",
     "@types/jest": "^30.0.0",

@@ -190,26 +190,68 @@ export class ClassSessionsService {
   }
 
   /**
-   * Sync recording from Zoom
+   * Sync recording — checks DB first (S3-backed from Lambda), falls back to Zoom API
    */
   async syncRecording(id: string) {
     const session = await this.prisma.classSession.findUnique({
       where: { id },
+      include: {
+        recordings: {
+          where: { status: { not: 'deleted' } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
     });
 
     if (!session || !session.meetingId || !session.isOnline) {
       return null;
     }
 
-    // Return if already synced and has passcode
+    // Check if we already have S3-backed recordings (from Lambda webhook)
+    const s3Recordings = session.recordings.filter(
+      (r) => r.s3Key && r.status === 'ready',
+    );
+
+    if (s3Recordings.length > 0) {
+      return {
+        recordings: s3Recordings,
+        source: 's3',
+      };
+    }
+
+    // Check if recordings are currently being processed by Lambda
+    const processingRecordings = session.recordings.filter(
+      (r) => r.status === 'processing',
+    );
+
+    if (processingRecordings.length > 0) {
+      return {
+        recordings: processingRecordings,
+        source: 's3',
+        processing: true,
+      };
+    }
+
+    // If we have any non-S3 recordings already in DB, return them
+    if (session.recordings.length > 0) {
+      return {
+        recordings: session.recordings,
+        url: session.recordings[0].url,
+        passcode: session.recordings[0].passcode,
+        source: 'legacy',
+      };
+    }
+
+    // Return cached legacy fields if present
     if (session.recordingUrl && session.recordingPasscode) {
       return {
         url: session.recordingUrl,
         passcode: session.recordingPasscode,
+        source: 'legacy',
       };
     }
 
-    // If meeting is past, try to fetch recording from Zoom
+    // Fallback: try to fetch recording from Zoom API (for meetings not yet processed by Lambda)
     try {
       console.log(
         `[ClassSessionsService] Syncing recording for session ${id}, meetingId: ${session.meetingId}`,
@@ -219,37 +261,27 @@ export class ClassSessionsService {
       );
 
       if (walk && walk.recordings && walk.recordings.length > 0) {
-        const syncedRecordings: any[] = [];
-        for (const rec of walk.recordings) {
-          // Use upsert to prevent duplicate recordings for the same URL in this session
-          const recording = await this.prisma.sessionRecording.upsert({
-            where: {
-              sessionId_url: {
-                sessionId: id,
-                url: rec.url,
-              },
-            },
-            create: {
-              sessionId: id,
-              title:
-                rec.file_type === 'SHARE_URL'
-                  ? 'Zoom Share Link'
-                  : `Recording Part ${
-                      walk.recordings.indexOf(rec) + 1
-                    } - ${new Date(
-                      rec.recording_start || new Date(),
-                    ).toLocaleTimeString()}`,
-              url: rec.url,
-              passcode: walk.password,
-            },
-            update: {
-              passcode: walk.password, // Update passcode if it changed
-            },
-          });
-          syncedRecordings.push(recording);
-        }
+        // DO NOT save to SessionRecording table anymore to avoid duplicates with S3
+        // Just return the Zoom records as a transient fallback
+        const transientRecordings = walk.recordings.map((rec, index) => ({
+          id: `zoom-temp-${rec.id}`,
+          title:
+            rec.file_type === 'SHARE_URL'
+              ? 'Zoom Share Link'
+              : `Recording Part ${index + 1} - ${new Date(
+                  rec.recording_start || new Date(),
+                ).toLocaleTimeString()}`,
+          url: rec.url,
+          zoomFileId: rec.id,
+          passcode: walk.password,
+          fileType: rec.file_type,
+          status: 'ready',
+          recordedAt: rec.recording_start ? new Date(rec.recording_start) : null,
+          sessionId: id,
+          isTransient: true,
+        }));
 
-        // Also update the legacy fields with the first recording for backward compatibility
+        // Update legacy fields for backward compatibility (optional but kept for safety)
         if (walk.recordings.length > 0) {
           await this.prisma.classSession.update({
             where: { id },
@@ -263,7 +295,8 @@ export class ClassSessionsService {
         return {
           url: walk.recordings[0].url,
           passcode: walk.password,
-          recordings: syncedRecordings,
+          recordings: transientRecordings,
+          source: 'zoom',
         };
       } else {
         console.log(

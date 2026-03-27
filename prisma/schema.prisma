@@ -202,14 +202,20 @@ model ClassSession {
 }
 
 model SessionRecording {
-  id        String       @id @default(cuid())
-  title     String
-  url       String
-  passcode  String?
-  sessionId String
-  session   ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  createdAt DateTime     @default(now())
-  updatedAt DateTime     @updatedAt
+  id           String       @id @default(cuid())
+  title        String
+  url          String
+  s3Key        String?
+  passcode     String?
+  fileType     String?      // 'MP4', 'M4A', 'TRANSCRIPT'
+  status       String       @default("ready") // 'processing', 'ready', 'deleted'
+  durationSecs Int?
+  recordedAt   DateTime?
+  zoomFileId   String?
+  sessionId    String
+  session      ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
 
   @@unique([sessionId, url])
 }
