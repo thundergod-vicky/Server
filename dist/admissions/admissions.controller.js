@@ -55,6 +55,9 @@ let AdmissionsController = class AdmissionsController {
             res.status(404).send(message);
         }
     }
+    updateAdmission(id, data) {
+        return this.admissionsService.updateAdmission(id, data);
+    }
     approveAdmission(id, req) {
         return this.admissionsService.approveAdmission(id, req.user.id || req.user.userId);
     }
@@ -120,6 +123,17 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AdmissionsController.prototype, "getPhoto", null);
+_ts_decorate([
+    (0, _common.Patch)(':id'),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_param(1, (0, _common.Body)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String,
+        Object
+    ]),
+    _ts_metadata("design:returntype", void 0)
+], AdmissionsController.prototype, "updateAdmission", null);
 _ts_decorate([
     (0, _common.Patch)(':id/approve'),
     _ts_param(0, (0, _common.Param)('id')),

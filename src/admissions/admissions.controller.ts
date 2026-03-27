@@ -73,6 +73,11 @@ export class AdmissionsController {
     }
   }
 
+  @Patch(':id')
+  updateAdmission(@Param('id') id: string, @Body() data: any) {
+    return this.admissionsService.updateAdmission(id, data);
+  }
+
   @Patch(':id/approve')
   approveAdmission(@Param('id') id: string, @Req() req) {
     return this.admissionsService.approveAdmission(

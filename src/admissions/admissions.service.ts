@@ -110,6 +110,31 @@ export class AdmissionsService {
     });
   }
 
+  async updateAdmission(id: string, data: any) {
+    return this.prisma.admission.update({
+      where: { id },
+      data: {
+        ...(data.studentName && { studentName: data.studentName }),
+        ...(data.fatherName && { fatherName: data.fatherName }),
+        ...(data.motherName && { motherName: data.motherName }),
+        ...(data.email && { email: data.email }),
+        ...(data.contactNumber && { contactNumber: data.contactNumber }),
+        ...(data.alternateContact !== undefined && { alternateContact: data.alternateContact }),
+        ...(data.address && { address: data.address }),
+        ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
+        ...(data.caste && { caste: data.caste }),
+        ...(data.studentClass && { studentClass: data.studentClass }),
+        ...(data.stream && { stream: data.stream }),
+        ...(data.course && { course: data.course }),
+        ...(data.schoolName && { schoolName: data.schoolName }),
+        ...(data.board && { board: data.board }),
+        ...(data.batchCode !== undefined && { batchCode: data.batchCode }),
+        ...(data.enrollmentNumber && { enrollmentNumber: data.enrollmentNumber }),
+        ...(data.formNumber && { formNumber: data.formNumber }),
+      },
+    });
+  }
+
   async getAdmissionByStudentId(studentId: string) {
     const admission = await this.prisma.admission.findUnique({
       where: { studentId },
