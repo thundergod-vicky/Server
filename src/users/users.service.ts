@@ -46,6 +46,7 @@ export class UsersService {
         parentRequests: {
           orderBy: { createdAt: 'desc' },
         },
+        admission: true,
       },
     });
 
@@ -78,12 +79,16 @@ export class UsersService {
       if (user.parentOf?.length > 0) {
         for (const link of user.parentOf) {
           if (!link.student.enrollmentId) {
-            const newStudentId = await this.generateEnrollmentId(link.student.role);
+            const newStudentId = await this.generateEnrollmentId(
+              link.student.role,
+            );
             await this.prisma.user.update({
               where: { id: link.student.id },
-              data: { enrollmentId: newStudentId }
+              data: { enrollmentId: newStudentId },
             });
-            console.log(`Auto-fixed missing enrollmentId (findOne) for student: ${link.student.email} -> ${newStudentId}`);
+            console.log(
+              `Auto-fixed missing enrollmentId (findOne) for student: ${link.student.email} -> ${newStudentId}`,
+            );
           }
         }
       }
@@ -124,6 +129,7 @@ export class UsersService {
             parentRequests: {
               orderBy: { createdAt: 'desc' },
             },
+            admission: true,
           },
         });
       }
@@ -179,6 +185,7 @@ export class UsersService {
           },
           orderBy: { createdAt: 'desc' },
         },
+        admission: true,
       },
     });
 
@@ -202,12 +209,16 @@ export class UsersService {
       if (user.parentOf?.length > 0) {
         for (const link of user.parentOf) {
           if (!link.student.enrollmentId) {
-            const newStudentId = await this.generateEnrollmentId(link.student.role);
+            const newStudentId = await this.generateEnrollmentId(
+              link.student.role,
+            );
             await this.prisma.user.update({
               where: { id: link.student.id },
-              data: { enrollmentId: newStudentId }
+              data: { enrollmentId: newStudentId },
             });
-            console.log(`Auto-fixed missing enrollmentId for student: ${link.student.email} -> ${newStudentId}`);
+            console.log(
+              `Auto-fixed missing enrollmentId for student: ${link.student.email} -> ${newStudentId}`,
+            );
           }
         }
       }
@@ -261,6 +272,7 @@ export class UsersService {
               },
               orderBy: { createdAt: 'desc' },
             },
+            admission: true,
           },
         });
       }

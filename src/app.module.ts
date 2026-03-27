@@ -21,6 +21,7 @@ import { ZoomModule } from './zoom/zoom.module';
 import { BillingModule } from './billing/billing.module';
 import { ExamsModule } from './exams/exams.module';
 import { RecordingsModule } from './recordings/recordings.module';
+import { AdmissionsModule } from './admissions/admissions.module';
 
 @Module({
   imports: [
@@ -44,9 +45,9 @@ import { RecordingsModule } from './recordings/recordings.module';
     BillingModule,
     ExamsModule,
     RecordingsModule,
+    AdmissionsModule,
   ],
   controllers: [AppController],
   providers: [AppService],
 })
 export class AppModule {}
-
