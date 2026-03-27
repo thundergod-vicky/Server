@@ -16,6 +16,7 @@ export class ClassSessionsService {
     type: 'LECTURE' | 'PRACTICAL' | 'WORKSHOP';
     teacherId: string;
     batchId: string;
+    subjectId?: string;
     date: string;
     startTime: string;
     endTime: string;
@@ -53,6 +54,7 @@ export class ClassSessionsService {
         type: data.type,
         teacherId: data.teacherId,
         batchId: data.batchId,
+        subjectId: data.subjectId || null,
         date: new Date(data.date),
         startTime: data.startTime,
         endTime: data.endTime,
@@ -107,6 +109,9 @@ export class ClassSessionsService {
       include: {
         teacher: { select: { id: true, name: true, profileImage: true } },
         batch: { select: { id: true, name: true } },
+        subject: true,
+        recordings: true,
+        attachments: true,
       },
       orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
@@ -118,6 +123,9 @@ export class ClassSessionsService {
       include: {
         batch: { select: { id: true, name: true } },
         teacher: { select: { id: true, name: true, profileImage: true } },
+        subject: true,
+        recordings: true,
+        attachments: true,
       },
       orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
@@ -135,9 +143,174 @@ export class ClassSessionsService {
       include: {
         teacher: { select: { id: true, name: true, profileImage: true } },
         batch: { select: { id: true, name: true } },
+        subject: true,
+        recordings: true,
+        attachments: true,
       },
       orderBy: [{ createdAt: 'desc' }, { date: 'asc' }, { startTime: 'asc' }],
     });
+  }
+
+  // Artifact Management
+  async addRecording(
+    sessionId: string,
+    title: string,
+    url: string,
+    passcode?: string,
+  ) {
+    return this.prisma.sessionRecording.create({
+      data: { sessionId, title, url, passcode },
+    });
+  }
+
+  async updateRecording(id: string, title: string) {
+    return this.prisma.sessionRecording.update({
+      where: { id },
+      data: { title },
+    });
+  }
+
+  async removeRecording(id: string) {
+    return this.prisma.sessionRecording.delete({ where: { id } });
+  }
+
+  async addAttachment(
+    sessionId: string,
+    title: string,
+    url: string,
+    type: string,
+  ) {
+    return this.prisma.sessionAttachment.create({
+      data: { sessionId, title, url, type },
+    });
+  }
+
+  async removeAttachment(id: string) {
+    return this.prisma.sessionAttachment.delete({ where: { id } });
+  }
+
+  /**
+   * Sync recording — checks DB first (S3-backed from Lambda), falls back to Zoom API
+   */
+  async syncRecording(id: string) {
+    const session = await this.prisma.classSession.findUnique({
+      where: { id },
+      include: {
+        recordings: {
+          where: { status: { not: 'deleted' } },
+          orderBy: { createdAt: 'asc' },
+        },
+      },
+    });
+
+    if (!session || !session.meetingId || !session.isOnline) {
+      return null;
+    }
+
+    // Check if we already have S3-backed recordings (from Lambda webhook)
+    const s3Recordings = session.recordings.filter(
+      (r) => r.s3Key && r.status === 'ready',
+    );
+
+    if (s3Recordings.length > 0) {
+      return {
+        recordings: s3Recordings,
+        source: 's3',
+      };
+    }
+
+    // Check if recordings are currently being processed by Lambda
+    const processingRecordings = session.recordings.filter(
+      (r) => r.status === 'processing',
+    );
+
+    if (processingRecordings.length > 0) {
+      return {
+        recordings: processingRecordings,
+        source: 's3',
+        processing: true,
+      };
+    }
+
+    // If we have any non-S3 recordings already in DB, return them
+    if (session.recordings.length > 0) {
+      return {
+        recordings: session.recordings,
+        url: session.recordings[0].url,
+        passcode: session.recordings[0].passcode,
+        source: 'legacy',
+      };
+    }
+
+    // Return cached legacy fields if present
+    if (session.recordingUrl && session.recordingPasscode) {
+      return {
+        url: session.recordingUrl,
+        passcode: session.recordingPasscode,
+        source: 'legacy',
+      };
+    }
+
+    // Fallback: try to fetch recording from Zoom API (for meetings not yet processed by Lambda)
+    try {
+      console.log(
+        `[ClassSessionsService] Syncing recording for session ${id}, meetingId: ${session.meetingId}`,
+      );
+      const walk = await this.zoomService.getMeetingRecording(
+        session.meetingId,
+      );
+
+      if (walk && walk.recordings && walk.recordings.length > 0) {
+        // DO NOT save to SessionRecording table anymore to avoid duplicates with S3
+        // Just return the Zoom records as a transient fallback
+        const transientRecordings = walk.recordings.map((rec, index) => ({
+          id: `zoom-temp-${rec.id}`,
+          title:
+            rec.file_type === 'SHARE_URL'
+              ? 'Zoom Share Link'
+              : `Recording Part ${index + 1} - ${new Date(
+                  rec.recording_start || new Date(),
+                ).toLocaleTimeString()}`,
+          url: rec.url,
+          zoomFileId: rec.id,
+          passcode: walk.password,
+          fileType: rec.file_type,
+          status: 'ready',
+          recordedAt: rec.recording_start ? new Date(rec.recording_start) : null,
+          sessionId: id,
+          isTransient: true,
+        }));
+
+        // Update legacy fields for backward compatibility (optional but kept for safety)
+        if (walk.recordings.length > 0) {
+          await this.prisma.classSession.update({
+            where: { id },
+            data: {
+              recordingUrl: walk.recordings[0].url,
+              recordingPasscode: walk.password,
+            },
+          });
+        }
+
+        return {
+          url: walk.recordings[0].url,
+          passcode: walk.password,
+          recordings: transientRecordings,
+          source: 'zoom',
+        };
+      } else {
+        console.log(
+          `[ClassSessionsService] No recording found for meeting ${session.meetingId}`,
+        );
+      }
+    } catch (err) {
+      console.error(
+        '[ClassSessionsService] Failed to sync Zoom recording',
+        err,
+      );
+    }
+
+    return null;
   }
 
   async delete(id: string) {

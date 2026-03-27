@@ -140,12 +140,26 @@ model User {
   admission       Admission?
 }
 
+model Subject {
+  id        String   @id @default(cuid())
+  name      String
+  batchId   String
+  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  sessions  ClassSession[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([name, batchId])
+  @@index([batchId])
+}
+
 model Batch {
   id          String         @id @default(cuid())
   name        String
   description String?
   teachers    User[]         @relation("TeacherBatches")
   students    User[]         @relation("StudentBatches")
+  subjects    Subject[]
   sessions    ClassSession[]
   exams       Exam[]
   createdAt   DateTime       @default(now())
@@ -166,6 +180,8 @@ model ClassSession {
   teacher   User        @relation("TeacherSessions", fields: [teacherId], references: [id])
   batchId   String
   batch     Batch       @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  subjectId String?
+  subject   Subject?    @relation(fields: [subjectId], references: [id])
   date      DateTime
   startTime String
   endTime   String
@@ -176,9 +192,44 @@ model ClassSession {
   isOnline   Boolean @default(false)
   meetingUrl String?
   meetingId  String?
+  recordingUrl String?
+  recordingPasscode String?
+
+  recordings  SessionRecording[]
+  attachments SessionAttachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SessionRecording {
+  id           String       @id @default(cuid())
+  title        String
+  url          String
+  s3Key        String?
+  passcode     String?
+  fileType     String?      // 'MP4', 'M4A', 'TRANSCRIPT'
+  status       String       @default("ready") // 'processing', 'ready', 'deleted'
+  durationSecs Int?
+  recordedAt   DateTime?
+  zoomFileId   String?
+  sessionId    String
+  session      ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt    DateTime     @default(now())
+  updatedAt    DateTime     @updatedAt
+
+  @@unique([sessionId, url])
+}
+
+model SessionAttachment {
+  id        String       @id @default(cuid())
+  title     String
+  url       String
+  type      String       // 'PDF', 'PRESENTATION', 'OTHER'
+  sessionId String
+  session   ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
 }
 
 model ParentStudent {

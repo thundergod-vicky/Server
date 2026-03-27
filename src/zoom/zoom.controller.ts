@@ -1,7 +1,22 @@
-import { Controller, Post, Get, Body, UseGuards, Query } from '@nestjs/common';
+/* eslint-disable @typescript-eslint/no-unsafe-call */
+/* eslint-disable @typescript-eslint/no-unsafe-member-access */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  UseGuards,
+  Query,
+  Param,
+} from '@nestjs/common';
 import { ZoomService } from './zoom.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
+import { RolesGuard } from '../auth/roles.guard';
+import { Roles } from '../auth/roles.decorator';
+import { Role } from '@prisma/client';
 
+// Force reload - debug version 2
 @Controller('zoom')
 export class ZoomController {
   constructor(private readonly zoomService: ZoomService) {}
@@ -25,25 +40,60 @@ export class ZoomController {
     }
     return {
       signature,
-      sdkKey: process.env.ZOOM_CLIENT_ID || 'missing_key',
+      sdkKey:
+        payload.sdkKey ||
+        process.env.ZOOM_SDK_KEY ||
+        process.env.ZOOM_CLIENT_ID ||
+        'missing_key',
       _debug_payload: payload,
     };
   }
 
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS)
+  @Post('create-meeting')
+  async createMeeting(
+    @Body() body: { topic: string; startTime: string; duration: number },
+  ) {
+    return this.zoomService.createMeeting(
+      body.topic,
+      body.startTime,
+      body.duration,
+    );
+  }
+
   @Get('debug')
   debugConfig(@Query('meetingNumber') meetingNumber: string) {
-    const sig = this.zoomService.generateSignature(
-      meetingNumber || '123456789',
-      0,
-    );
+    const meetingNum = meetingNumber || '123456789';
+    const sig = this.zoomService.generateSignature(meetingNum, 0);
     const parts = sig.split('.');
     const payload = JSON.parse(Buffer.from(parts[1], 'base64').toString());
+
     return {
-      sdkKeyUsed: payload.appKey,
-      secretLength: process.env.ZOOM_CLIENT_SECRET?.length ?? 0,
-      secretFirst4: process.env.ZOOM_CLIENT_SECRET?.substring(0, 4) ?? 'N/A',
+      sdkKeyUsed: payload.sdkKey,
+      sdkKeyLength: payload.sdkKey?.length || 0,
+      sdkSecretLength: process.env.ZOOM_CLIENT_SECRET?.length || 0,
+      sdkSecretFirst4: process.env.ZOOM_CLIENT_SECRET?.substring(0, 4) || 'N/A',
+      sdkSecretLast4: process.env.ZOOM_CLIENT_SECRET?.slice(-4) || 'N/A',
+      meetingNumber: payload.mn,
+      role: payload.role,
+      iat: payload.iat,
+      exp: payload.exp,
+      tokenExp: payload.tokenExp,
+      now: Math.round(Date.now() / 1000),
       payload,
-      message: 'Use this to verify your credentials on https://jwt.io',
+      message:
+        'Check if sdkKey matches your Zoom Marketplace Client ID (standard length is 22).',
     };
+  }
+
+  @Get('debug-recording/:meetingId')
+  async debugRecording(@Param('meetingId') meetingId: string) {
+    try {
+      const result = await this.zoomService.getMeetingRecording(meetingId);
+      return { success: true, result };
+    } catch (err: any) {
+      return { success: false, error: err.message || err?.toString() };
+    }
   }
 }

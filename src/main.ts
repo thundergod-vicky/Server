@@ -3,8 +3,10 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import dns from 'node:dns';
 
 async function bootstrap() {
+  dns.setDefaultResultOrder('ipv4first');
   const app = await NestFactory.create(AppModule);
   app.useGlobalPipes(new ValidationPipe());
   // Swagger Configuration
