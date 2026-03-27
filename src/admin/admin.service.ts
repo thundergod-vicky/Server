@@ -102,6 +102,12 @@ export class AdminService {
     if (data.enrollmentId && typeof data.enrollmentId === 'string') {
       data.enrollmentId = data.enrollmentId.replace(/\s+/g, '');
     }
+
+    // Hash password if provided
+    if (data.password && typeof data.password === 'string') {
+      data.password = await bcrypt.hash(data.password, 10);
+    }
+
     return this.prisma.user.update({
       where: { id: userId },
       data,
