@@ -63,6 +63,13 @@ export class AdminController {
     return this.adminService.getAllUsers();
   }
 
+  @Get('users/:id/details')
+  @ApiOperation({ summary: 'Get full user details' })
+  async getUserDetails(@Param('id') userId: string, @Request() req) {
+    this.checkAdmin(req);
+    return this.adminService.getUserFullDetails(userId);
+  }
+
   @Patch('users/:id/role')
   @ApiOperation({ summary: 'Update user role' })
   async updateRole(
@@ -97,6 +104,17 @@ export class AdminController {
   async deleteCourse(@Param('id') courseId: string, @Request() req) {
     this.checkAdmin(req);
     return this.adminService.deleteCourse(courseId);
+  }
+
+  @Patch('courses/:id')
+  @ApiOperation({ summary: 'Update course details' })
+  async updateCourse(
+    @Param('id') courseId: string,
+    @Body() data: any,
+    @Request() req,
+  ) {
+    this.checkAdmin(req);
+    return this.adminService.updateCourse(courseId, data);
   }
 
   // Practice Test Management

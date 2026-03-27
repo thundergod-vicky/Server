@@ -123,6 +123,13 @@ export class AdminService {
     });
   }
 
+  async updateCourse(courseId: string, data: any) {
+    return this.prisma.course.update({
+      where: { id: courseId },
+      data,
+    });
+  }
+
   // Practice Test Management
   async getAllPracticeTests() {
     return this.prisma.practiceTest.findMany({
@@ -340,6 +347,29 @@ export class AdminService {
         password: hashedPassword,
         enrollmentId,
         profileSlug: crypto.randomUUID(),
+      },
+    });
+  }
+
+  async getUserFullDetails(userId: string) {
+    return this.prisma.user.findUnique({
+      where: { id: userId },
+      include: {
+        admission: true,
+        enrollments: { include: { course: true } },
+        payments: true,
+        batchesEnrolled: { include: { _count: { select: { sessions: true } } } },
+        batchesTaught: true,
+        coursesOwned: { include: { _count: { select: { enrollments: true } } } },
+        parentOf: { include: { student: true } },
+        studentOf: { include: { parent: true } },
+        _count: {
+          select: {
+            enrollments: true,
+            practiceTestResults: true,
+            coursesOwned: true,
+          },
+        },
       },
     });
   }

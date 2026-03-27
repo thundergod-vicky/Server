@@ -46,6 +46,10 @@ let AdminController = class AdminController {
         this.checkAdmin(req);
         return this.adminService.getAllUsers();
     }
+    async getUserDetails(userId, req) {
+        this.checkAdmin(req);
+        return this.adminService.getUserFullDetails(userId);
+    }
     async updateRole(userId, data, req) {
         this.checkAdmin(req);
         return this.adminService.updateUserRole(userId, data.role);
@@ -61,6 +65,10 @@ let AdminController = class AdminController {
     async deleteCourse(courseId, req) {
         this.checkAdmin(req);
         return this.adminService.deleteCourse(courseId);
+    }
+    async updateCourse(courseId, data, req) {
+        this.checkAdmin(req);
+        return this.adminService.updateCourse(courseId, data);
     }
     // Practice Test Management
     async getPracticeTests(req) {
@@ -136,6 +144,20 @@ _ts_decorate([
     _ts_metadata("design:returntype", Promise)
 ], AdminController.prototype, "getUsers", null);
 _ts_decorate([
+    (0, _common.Get)('users/:id/details'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Get full user details'
+    }),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_param(1, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String,
+        void 0
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdminController.prototype, "getUserDetails", null);
+_ts_decorate([
     (0, _common.Patch)('users/:id/role'),
     (0, _swagger.ApiOperation)({
         summary: 'Update user role'
@@ -193,6 +215,22 @@ _ts_decorate([
     ]),
     _ts_metadata("design:returntype", Promise)
 ], AdminController.prototype, "deleteCourse", null);
+_ts_decorate([
+    (0, _common.Patch)('courses/:id'),
+    (0, _swagger.ApiOperation)({
+        summary: 'Update course details'
+    }),
+    _ts_param(0, (0, _common.Param)('id')),
+    _ts_param(1, (0, _common.Body)()),
+    _ts_param(2, (0, _common.Request)()),
+    _ts_metadata("design:type", Function),
+    _ts_metadata("design:paramtypes", [
+        String,
+        Object,
+        void 0
+    ]),
+    _ts_metadata("design:returntype", Promise)
+], AdminController.prototype, "updateCourse", null);
 _ts_decorate([
     (0, _common.Get)('practice-tests'),
     (0, _swagger.ApiOperation)({

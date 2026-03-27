@@ -203,6 +203,14 @@ let AdminService = class AdminService {
             }
         });
     }
+    async updateCourse(courseId, data) {
+        return this.prisma.course.update({
+            where: {
+                id: courseId
+            },
+            data
+        });
+    }
     // Practice Test Management
     async getAllPracticeTests() {
         return this.prisma.practiceTest.findMany({
@@ -498,6 +506,58 @@ let AdminService = class AdminService {
                 password: hashedPassword,
                 enrollmentId,
                 profileSlug: _crypto.randomUUID()
+            }
+        });
+    }
+    async getUserFullDetails(userId) {
+        return this.prisma.user.findUnique({
+            where: {
+                id: userId
+            },
+            include: {
+                admission: true,
+                enrollments: {
+                    include: {
+                        course: true
+                    }
+                },
+                payments: true,
+                batchesEnrolled: {
+                    include: {
+                        _count: {
+                            select: {
+                                sessions: true
+                            }
+                        }
+                    }
+                },
+                batchesTaught: true,
+                coursesOwned: {
+                    include: {
+                        _count: {
+                            select: {
+                                enrollments: true
+                            }
+                        }
+                    }
+                },
+                parentOf: {
+                    include: {
+                        student: true
+                    }
+                },
+                studentOf: {
+                    include: {
+                        parent: true
+                    }
+                },
+                _count: {
+                    select: {
+                        enrollments: true,
+                        practiceTestResults: true,
+                        coursesOwned: true
+                    }
+                }
             }
         });
     }
