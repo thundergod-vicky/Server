@@ -194,6 +194,7 @@ model ClassSession {
   isOnline   Boolean @default(false)
   meetingUrl String?
   meetingId  String?
+  meetingPasscode String?
   recordingUrl String?
   recordingPasscode String?
 

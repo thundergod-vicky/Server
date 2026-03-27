@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -62,6 +63,7 @@ export class AuthService {
         phone: (u as any).phone,
         parentOf: u.parentOf,
         parentRequests: u.parentRequests,
+        admission: (u as any).admission,
       },
     };
   }
