@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateBatchDto } from './dto/create-batch.dto';
 
@@ -32,27 +36,65 @@ export class BatchesService {
     });
   }
 
-  async findOne(id: string) {
+  async findOne(id: string, userId?: string, role?: string) {
     const batch = await this.prisma.batch.findUnique({
       where: { id },
       include: {
-        teachers: { select: { id: true, name: true, email: true } },
-        students: { select: { id: true, name: true, email: true } },
+        teachers: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
+        students: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+          },
+        },
         subjects: true,
         sessions: {
           include: {
+            teacher: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
             subject: true,
-            teacher: { select: { id: true, name: true } },
             recordings: true,
             attachments: true,
           },
-          orderBy: { date: "asc" },
+        },
+        _count: {
+          select: {
+            students: true,
+            teachers: true,
+          },
         },
       },
     });
 
     if (!batch) {
       throw new NotFoundException(`Batch with ID ${id} not found`);
+    }
+
+    // Role-based access control
+    if (userId && role) {
+      if (role === 'ADMIN' || role === 'ACADEMIC_OPERATIONS') {
+        return batch;
+      }
+
+      const isTeacher = batch.teachers.some((t) => t.id === userId);
+      const isStudent = batch.students.some((s) => s.id === userId);
+
+      if (!isTeacher && !isStudent) {
+        throw new ForbiddenException(
+          'Access denied: You are not assigned to this batch',
+        );
+      }
     }
 
     return batch;
@@ -77,7 +119,7 @@ export class BatchesService {
       where: { id: batchId },
       data: {
         teachers: {
-          connect: teacherIds.map((id) => ({ id })),
+          set: teacherIds.map((id) => ({ id })),
         },
       },
       include: {
@@ -98,6 +140,9 @@ export class BatchesService {
   }
 
   async findByStudent(studentId: string) {
+    if (!studentId) {
+      return [];
+    }
     return this.prisma.batch.findMany({
       where: {
         students: {
@@ -112,6 +157,9 @@ export class BatchesService {
   }
 
   async findByTeacher(teacherId: string) {
+    if (!teacherId) {
+      return [];
+    }
     return this.prisma.batch.findMany({
       where: {
         teachers: {
