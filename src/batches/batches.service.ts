@@ -46,7 +46,7 @@ export class BatchesService {
             recordings: true,
             attachments: true,
           },
-          orderBy: { date: "asc" },
+          orderBy: { date: 'asc' },
         },
       },
     });
@@ -77,7 +77,7 @@ export class BatchesService {
       where: { id: batchId },
       data: {
         teachers: {
-          connect: teacherIds.map((id) => ({ id })),
+          set: teacherIds.map((id) => ({ id })),
         },
       },
       include: {
