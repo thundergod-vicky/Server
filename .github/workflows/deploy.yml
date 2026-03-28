@@ -15,48 +15,41 @@ jobs:
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
 
-      - name: Configure AWS Credentials Now
+      - name: Configure AWS
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ap-south-1
 
-      - name: Login to Amazon ECR
+      - name: Login to ECR
         run: |
           aws ecr get-login-password --region ap-south-1 | \
           docker login --username AWS --password-stdin 640465964259.dkr.ecr.ap-south-1.amazonaws.com
 
-      - name: Build & Push Image
+      - name: Build & Push Backend Image
         run: |
           docker buildx build \
             --platform linux/amd64 \
             -t 640465964259.dkr.ecr.ap-south-1.amazonaws.com/adhyayan-server:latest \
             --push .
 
-      - name: Deploy on EC2
+      - name: Deploy on Backend EC2
         uses: appleboy/ssh-action@v1.0.0
         with:
-          host: ${{ secrets.EC2_HOST }}
+          host: ${{ secrets.BACKEND_EC2_HOST }}
           username: ubuntu
           key: ${{ secrets.EC2_SSH_KEY }}
           script: |
-            # Login to ECR on EC2
+            # 1. Login to ECR on the server
             aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 640465964259.dkr.ecr.ap-south-1.amazonaws.com
 
-            # Pull New Image
+            # 2. Pull and Restart
             docker pull 640465964259.dkr.ecr.ap-south-1.amazonaws.com/adhyayan-server:latest
-
-            # Stop & Restart Container with all environment variables
             docker stop adhyayan-backend-container || true
             docker rm adhyayan-backend-container || true
-            docker run -d -p 5000:3002 \
+            docker run -d -p 5000:5000 \
               --restart unless-stopped \
+              --env-file /home/ubuntu/.env \
               --name adhyayan-backend-container \
-              -e AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }} \
-              -e AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }} \
-              -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
-              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
-              -e AWS_S3_REGION=ap-south-1 \
-              -e AWS_S3_BUCKET_NAME=src-adhyayan \
               640465964259.dkr.ecr.ap-south-1.amazonaws.com/adhyayan-server:latest
