@@ -2,7 +2,7 @@ name: Deploy Backend
 
 on:
   push:
-    branches: [master]
+    branches: [master] # Triggering on master as you updated it
 
 jobs:
   deploy:
@@ -43,13 +43,19 @@ jobs:
           script: |
             # 1. Login to ECR on the server
             aws ecr get-login-password --region ap-south-1 | docker login --username AWS --password-stdin 640465964259.dkr.ecr.ap-south-1.amazonaws.com
-
-            # 2. Pull and Restart
+            
+            # 2. Pull and Restart with Secrets
             docker pull 640465964259.dkr.ecr.ap-south-1.amazonaws.com/adhyayan-server:latest
             docker stop adhyayan-backend-container || true
             docker rm adhyayan-backend-container || true
-            docker run -d -p 5000:5000 \
+            docker run -d -p 5000:3002 \
               --restart unless-stopped \
-              --env-file /home/ubuntu/.env \
               --name adhyayan-backend-container \
+              -e PORT=3002 \
+              -e DATABASE_URL="${{ secrets.DATABASE_URL }}" \
+              -e JWT_SECRET="${{ secrets.JWT_SECRET }}" \
+              -e AWS_ACCESS_KEY_ID="${{ secrets.AWS_ACCESS_KEY_ID }}" \
+              -e AWS_SECRET_ACCESS_KEY="${{ secrets.AWS_SECRET_ACCESS_KEY }}" \
+              -e AWS_S3_REGION=ap-south-1 \
+              -e AWS_S3_BUCKET_NAME=src-adhyayan \
               640465964259.dkr.ecr.ap-south-1.amazonaws.com/adhyayan-server:latest
