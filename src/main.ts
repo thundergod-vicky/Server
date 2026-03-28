@@ -27,6 +27,8 @@ async function bootstrap() {
       'http://localhost:3001',
       'https://adhyayan-backend-0eak.onrender.com',
       'https://adhyayan-trial.netlify.app',
+      'https://app.adhyayanedu.in',
+      'http://3.108.123.149',
     ],
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
