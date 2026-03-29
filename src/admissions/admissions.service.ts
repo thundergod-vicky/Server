@@ -3,6 +3,7 @@
 import { Injectable, InternalServerErrorException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../content/s3.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { AdmissionStatus, Stream, Caste } from '@prisma/client';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class AdmissionsService {
   constructor(
     private prisma: PrismaService,
     private s3Service: S3Service,
+    private notificationsService: NotificationsService,
   ) {}
 
   async getNextNumbers() {
@@ -34,7 +36,7 @@ export class AdmissionsService {
 
     const { formNumber, enrollmentNumber } = await this.getNextNumbers();
 
-    return this.prisma.admission.create({
+    const admission = await this.prisma.admission.create({
       data: {
         studentId: userId,
         studentName: data.studentName,
@@ -59,6 +61,28 @@ export class AdmissionsService {
         admissionDate: new Date(),
       },
     });
+
+    // Notify Admins and Academic Operations
+    try {
+      const staffUsers = await this.prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'ACADEMIC_OPERATIONS'] },
+        },
+      });
+
+      for (const staff of staffUsers) {
+        await this.notificationsService.create(
+          staff.id,
+          'New Admission Submission',
+          `${data.studentName} has submitted an admission form. Form ID: ${formNumber}`,
+          'INFO',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to notify staff about admission:', error);
+    }
+
+    return admission;
   }
 
   async getMyAdmission(userId: string) {
@@ -93,21 +117,51 @@ export class AdmissionsService {
   }
 
   async approveAdmission(id: string, approvedBy: string) {
-    return this.prisma.admission.update({
+    const admission = await this.prisma.admission.update({
       where: { id },
       data: {
         status: 'APPROVED',
         approvedById: approvedBy,
         approvedAt: new Date(),
       },
+      include: { student: { select: { id: true, name: true } } },
     });
+
+    // Notify student about approval
+    try {
+      await this.notificationsService.create(
+        admission.studentId,
+        'Admission Approved',
+        `Welcome to Adhyayan, ${admission.student.name}! Your admission has been approved. You can now access all student features.`,
+        'INFO',
+      );
+    } catch (error) {
+      console.error('Failed to notify student about admission approval:', error);
+    }
+
+    return admission;
   }
 
   async rejectAdmission(id: string) {
-    return this.prisma.admission.update({
+    const admission = await this.prisma.admission.update({
       where: { id },
       data: { status: 'REJECTED' },
+      include: { student: { select: { id: true } } },
     });
+
+    // Notify student about rejection
+    try {
+      await this.notificationsService.create(
+        admission.studentId,
+        'Admission Status Update',
+        'Your admission request has been rejected. Please contact the academic office for more details.',
+        'ALERT',
+      );
+    } catch (error) {
+      console.error('Failed to notify student about admission rejection:', error);
+    }
+
+    return admission;
   }
 
   async updateAdmission(id: string, data: any) {

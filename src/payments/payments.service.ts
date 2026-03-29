@@ -1,6 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { UsersService } from '../users/users.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -8,6 +10,7 @@ export class PaymentsService {
   constructor(
     private prisma: PrismaService,
     private usersService: UsersService,
+    private notificationsService: NotificationsService,
   ) {}
 
   /** All payments with student info — for ACCOUNTS dashboard */
@@ -66,7 +69,7 @@ export class PaymentsService {
       );
     }
 
-    return this.prisma.payment.create({
+    const payment = await this.prisma.payment.create({
       data: {
         studentId: targetStudentId,
         amount: data.amount,
@@ -81,6 +84,42 @@ export class PaymentsService {
         },
       },
     });
+
+    // Notify Student about payment record
+    try {
+      await this.notificationsService.create(
+        payment.studentId,
+        'Payment Recorded',
+        `A payment of ₹${payment.amount} has been recorded (Status: ${payment.status}). Mode: ${payment.mode || 'N/A'}.`,
+        payment.status === 'SUCCESS' ? 'INFO' : 'WARNING',
+      );
+    } catch (error) {
+      console.error('Failed to notify student about payment:', error);
+    }
+
+    // Notify Admins/Accounts if it's a new successful payment
+    if (payment.status === 'SUCCESS') {
+      try {
+        const staffUsers = await this.prisma.user.findMany({
+          where: {
+            role: { in: ['ADMIN', 'ACCOUNTS'] },
+          },
+        });
+
+        for (const staff of staffUsers) {
+          await this.notificationsService.create(
+            staff.id,
+            'New Payment Received',
+            `A successful payment of ₹${payment.amount} has been received from ${payment.student.name} (${payment.student.enrollmentId || 'Manual Entry'}).`,
+            'INFO',
+          );
+        }
+      } catch (error) {
+        console.error('Failed to notify staff about payment:', error);
+      }
+    }
+
+    return payment;
   }
 
   /** Find all payments for a specific student */
@@ -93,10 +132,25 @@ export class PaymentsService {
 
   /** Update payment status */
   async update(id: string, status: 'PENDING' | 'SUCCESS' | 'FAILED') {
-    return this.prisma.payment.update({
+    const payment = await this.prisma.payment.update({
       where: { id },
       data: { status },
+      include: { student: { select: { name: true } } },
     });
+
+    // Notify student about status change
+    try {
+      await this.notificationsService.create(
+        payment.studentId,
+        'Payment Status Updated',
+        `Your payment of ₹${payment.amount} status has been updated to ${status}.`,
+        status === 'SUCCESS' ? 'INFO' : 'WARNING',
+      );
+    } catch (error) {
+      console.error('Failed to notify student about payment update:', error);
+    }
+
+    return payment;
   }
 
   /** Delete a payment record */
@@ -124,37 +178,23 @@ export class PaymentsService {
       orderBy: { name: 'asc' },
     });
 
-    interface StudentWithPaymentsAndInvoices {
-      id: string;
-      name: string | null;
-      email: string;
-      phone: string | null;
-      enrollmentId: string | null;
-      financialStatus: string | null;
-      batchesEnrolled: { id: string; name: string }[];
-      payments: { amount: number; status: string }[];
-      invoices: { total: number; amount: number; status: string }[];
-    }
-    return (students as unknown as StudentWithPaymentsAndInvoices[]).map((s) => {
+    return (students as any[]).map((s) => {
       const totalPaidFromPayments = s.payments
-        .filter((p) => p.status === 'SUCCESS')
-        .reduce((sum, p) => sum + p.amount, 0);
+        .filter((p: any) => p.status === 'SUCCESS')
+        .reduce((sum: number, p: any) => sum + p.amount, 0);
 
       const totalPaidFromInvoices = s.invoices
-        .filter((inv) => inv.status === 'PAID')
-        .reduce((sum, inv) => sum + (inv.total || inv.amount), 0);
+        .filter((inv: any) => inv.status === 'PAID')
+        .reduce((sum: number, inv: any) => sum + (inv.total || inv.amount), 0);
 
-      // Use the higher value to ensure that paid invoices are always accounted for, 
-      // even if the linked payment record has an outdated amount.
       const totalPaid = Math.max(totalPaidFromPayments, totalPaidFromInvoices);
 
       const totalFee = s.invoices
-        .filter((inv) => inv.status !== 'CANCELLED')
-        .reduce((sum, inv) => sum + (inv.total || inv.amount), 0);
+        .filter((inv: any) => inv.status !== 'CANCELLED')
+        .reduce((sum: number, inv: any) => sum + (inv.total || inv.amount), 0);
         
       const due = Math.max(0, totalFee - totalPaid);
 
-      // Use manual status if set and valid, else calculate
       let status = s.financialStatus || 'NONE';
       if (!s.financialStatus || s.financialStatus === 'NONE') {
         const hasPayments = s.payments.length > 0;

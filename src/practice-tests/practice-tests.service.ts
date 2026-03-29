@@ -1,10 +1,14 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreatePracticeTestDto } from './dto/create-practice-test.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class PracticeTestsService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   async create(teacherId: string, dto: CreatePracticeTestDto) {
     return await this.prisma.practiceTest.create({
@@ -80,7 +84,7 @@ export class PracticeTestsService {
       finalRating = Math.min(5, finalRating + 0.5);
     }
 
-    return await this.prisma.practiceTestResult.create({
+    const result = await this.prisma.practiceTestResult.create({
       data: {
         studentId,
         testId,
@@ -91,7 +95,27 @@ export class PracticeTestsService {
         rating: parseFloat(finalRating.toFixed(1)),
         answers: data.answers,
       },
+      include: {
+        student: { select: { name: true } },
+        test: { select: { title: true, teacherId: true } },
+      },
     });
+
+    // Notify the teacher who created the test
+    try {
+      if (result.test.teacherId) {
+        await this.notificationsService.create(
+          result.test.teacherId,
+          'Practice Test Completed',
+          `${result.student.name} has completed the test "${result.test.title}" with a score of ${data.score}/${data.total} (Rating: ${result.rating}/5.0).`,
+          'INFO',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to notify teacher about test result:', error);
+    }
+
+    return result;
   }
 
   async findResultsByStudent(studentId: string) {

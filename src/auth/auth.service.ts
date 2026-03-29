@@ -3,6 +3,7 @@ import { Injectable } from '@nestjs/common';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcrypt';
 
 @Injectable()
@@ -11,6 +12,7 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private prisma: PrismaService,
+    private notificationsService: NotificationsService,
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
@@ -89,6 +91,27 @@ export class AuthService {
       ...registerDto,
       password: hashedPassword,
     });
+
+    // Notify Admins and Academic Operations about new registration
+    try {
+      const staffUsers = await this.prisma.user.findMany({
+        where: {
+          role: { in: ['ADMIN', 'ACADEMIC_OPERATIONS'] },
+        },
+      });
+
+      for (const staff of staffUsers) {
+        await this.notificationsService.create(
+          staff.id,
+          'New User Registered',
+          `A new ${registerDto.role.toLowerCase()} named ${registerDto.name} (${registerDto.email}) has just joined the platform.`,
+          'INFO',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to notify staff about registration:', error);
+    }
+
     return this.login(user);
   }
 }

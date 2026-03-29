@@ -311,7 +311,12 @@ export class UsersService {
     teacherId: string,
     data: { medal?: any; grade?: any },
   ) {
-    return await this.prisma.user.update({
+    const teacher = await this.prisma.user.findUnique({
+      where: { id: teacherId },
+      select: { name: true },
+    });
+
+    const updatedUser = await this.prisma.user.update({
       where: { id: studentId },
       data: {
         medal: data.medal,
@@ -320,6 +325,31 @@ export class UsersService {
         academicAssignedAt: new Date(),
       },
     });
+
+    // Notify student about the update
+    try {
+      let message = '';
+      if (data.medal && data.grade) {
+        message = `Congratulations! ${teacher?.name || 'A teacher'} has assigned you a ${data.medal} medal and grade ${data.grade.replace('_PLUS', '+')}.`;
+      } else if (data.medal) {
+        message = `Great job! ${teacher?.name || 'A teacher'} has assigned you a ${data.medal} medal.`;
+      } else if (data.grade) {
+        message = `${teacher?.name || 'A teacher'} has updated your academic grade to ${data.grade.replace('_PLUS', '+')}.`;
+      }
+
+      if (message) {
+        await this.notificationsService.create(
+          studentId,
+          'Academic Status Updated',
+          message,
+          'INFO',
+        );
+      }
+    } catch (error) {
+      console.error('Failed to notify student about status update:', error);
+    }
+
+    return updatedUser;
   }
 
   private getRandomAvatar(): string {

@@ -1,10 +1,14 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
+import { NotificationsService } from '../notifications/notifications.service';
 import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class BillingService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notificationsService: NotificationsService,
+  ) {}
 
   // --- Billing Templates ---
 
@@ -103,7 +107,7 @@ export class BillingService {
       .toString()
       .padStart(4, '0')}`;
 
-    return await this.prisma.invoice.create({
+    const invoice = await this.prisma.invoice.create({
       data: invoiceData,
       include: {
         student: {
@@ -112,6 +116,20 @@ export class BillingService {
         template: true,
       },
     });
+
+    // Notify student about new invoice
+    try {
+      await this.notificationsService.create(
+        invoice.studentId,
+        'New Invoice Generated',
+        `A new invoice ${invoice.invoiceNumber} for ₹${invoice.total} has been generated. Please review and process your payment.`,
+        'INFO',
+      );
+    } catch (error) {
+      console.error('Failed to notify student about invoice:', error);
+    }
+
+    return invoice;
   }
 
   async findAllInvoices(studentId?: string) {
@@ -143,10 +161,25 @@ export class BillingService {
     id: string,
     status: 'PENDING' | 'PAID' | 'CANCELLED',
   ) {
-    return await this.prisma.invoice.update({
+    const invoice = await this.prisma.invoice.update({
       where: { id },
       data: { status },
+      include: { student: { select: { name: true } } },
     });
+
+    // Notify student about status update
+    try {
+      await this.notificationsService.create(
+        invoice.studentId,
+        'Invoice Status Updated',
+        `The status of your invoice ${invoice.invoiceNumber} has been updated to ${status}.`,
+        status === 'PAID' ? 'INFO' : 'WARNING',
+      );
+    } catch (error) {
+      console.error('Failed to notify student about invoice status update:', error);
+    }
+
+    return invoice;
   }
 
   async updateInvoice(id: string, data: any) {
