@@ -117,16 +117,24 @@ export class BillingService {
       },
     });
 
-    // Notify student about new invoice
+    // Notify student and parents about new invoice
     try {
-      await this.notificationsService.create(
+      await this.notificationsService.notifyStudentAndParents(
         invoice.studentId,
         'New Invoice Generated',
         `A new invoice ${invoice.invoiceNumber} for ₹${invoice.total} has been generated. Please review and process your payment.`,
         'INFO',
       );
+
+      // Notify relevant staff
+      await this.notificationsService.notifyRoles(
+        ['ADMIN', 'ACCOUNTS', 'ACADEMIC_OPERATIONS'],
+        'Invoice Generated',
+        `Invoice ${invoice.invoiceNumber} (₹${invoice.total}) generated for ${invoice.student.name}.`,
+        'INFO'
+      );
     } catch (error) {
-      console.error('Failed to notify student about invoice:', error);
+      console.error('Failed to notify about invoice generation:', error);
     }
 
     return invoice;
@@ -164,19 +172,27 @@ export class BillingService {
     const invoice = await this.prisma.invoice.update({
       where: { id },
       data: { status },
-      include: { student: { select: { name: true } } },
+      include: { student: { select: { id: true, name: true, enrollmentId: true } } },
     });
 
-    // Notify student about status update
+    // Notify student and parents about status update
     try {
-      await this.notificationsService.create(
+      await this.notificationsService.notifyStudentAndParents(
         invoice.studentId,
         'Invoice Status Updated',
         `The status of your invoice ${invoice.invoiceNumber} has been updated to ${status}.`,
         status === 'PAID' ? 'INFO' : 'WARNING',
       );
+
+      // Notify relevant staff
+      await this.notificationsService.notifyRoles(
+        ['ADMIN', 'ACCOUNTS', 'ACADEMIC_OPERATIONS'],
+        'Invoice Status Changed',
+        `Invoice ${invoice.invoiceNumber} for ${invoice.student.name} is now ${status}.`,
+        status === 'PAID' ? 'INFO' : 'WARNING'
+      );
     } catch (error) {
-      console.error('Failed to notify student about invoice status update:', error);
+      console.error('Failed to notify about invoice status update:', error);
     }
 
     return invoice;

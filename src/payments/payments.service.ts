@@ -85,38 +85,28 @@ export class PaymentsService {
       },
     });
 
-    // Notify Student about payment record
+    // Notify student and parents about payment record
     try {
-      await this.notificationsService.create(
+      await this.notificationsService.notifyStudentAndParents(
         payment.studentId,
         'Payment Recorded',
         `A payment of ₹${payment.amount} has been recorded (Status: ${payment.status}). Mode: ${payment.mode || 'N/A'}.`,
         payment.status === 'SUCCESS' ? 'INFO' : 'WARNING',
       );
     } catch (error) {
-      console.error('Failed to notify student about payment:', error);
+      console.error('Failed to notify about payment:', error);
     }
 
-    // Notify Admins/Accounts if it's a new successful payment
-    if (payment.status === 'SUCCESS') {
-      try {
-        const staffUsers = await this.prisma.user.findMany({
-          where: {
-            role: { in: ['ADMIN', 'ACCOUNTS'] },
-          },
-        });
-
-        for (const staff of staffUsers) {
-          await this.notificationsService.create(
-            staff.id,
-            'New Payment Received',
-            `A successful payment of ₹${payment.amount} has been received from ${payment.student.name} (${payment.student.enrollmentId || 'Manual Entry'}).`,
-            'INFO',
-          );
-        }
-      } catch (error) {
-        console.error('Failed to notify staff about payment:', error);
-      }
+    // Notify relevant staff
+    try {
+      await this.notificationsService.notifyRoles(
+        ['ADMIN', 'ACCOUNTS', 'ACADEMIC_OPERATIONS'],
+        'Payment Recorded',
+        `${payment.student.name} just had a payment of ₹${payment.amount} recorded (${payment.status}).`,
+        payment.status === 'SUCCESS' ? 'INFO' : 'WARNING'
+      );
+    } catch (error) {
+      console.error('Failed to notify staff about payment:', error);
     }
 
     return payment;

@@ -17,6 +17,54 @@ export class NotificationsService {
     });
   }
 
+  /** Notify both the student and all linked parents */
+  async notifyStudentAndParents(
+    studentId: string,
+    title: string,
+    message: string,
+    type: NotificationType,
+  ) {
+    // 1. Notify student
+    await this.create(studentId, title, message, type);
+
+    // 2. Find and notify all parents
+    try {
+      const parents = await this.prisma.parentStudent.findMany({
+        where: { studentId },
+        select: { parentId: true },
+      });
+
+      for (const p of parents) {
+        await this.create(p.parentId, `[Child Update] ${title}`, message, type);
+      }
+    } catch (error) {
+      console.error('Failed to notify parents:', error);
+    }
+  }
+
+  /** Notify all users of specific roles */
+  async notifyRoles(
+    roles: string[],
+    title: string,
+    message: string,
+    type: NotificationType,
+  ) {
+    try {
+      const users = await this.prisma.user.findMany({
+        where: {
+          role: { in: roles as any },
+        },
+        select: { id: true },
+      });
+
+      for (const u of users) {
+        await this.create(u.id, title, message, type);
+      }
+    } catch (error) {
+      console.error(`Failed to notify roles ${roles}:`, error);
+    }
+  }
+
   async findAll(userId: string) {
     return this.prisma.notification.findMany({
       where: { userId },

@@ -62,22 +62,13 @@ export class AdmissionsService {
       },
     });
 
-    // Notify Admins and Academic Operations
     try {
-      const staffUsers = await this.prisma.user.findMany({
-        where: {
-          role: { in: ['ADMIN', 'ACADEMIC_OPERATIONS'] },
-        },
-      });
-
-      for (const staff of staffUsers) {
-        await this.notificationsService.create(
-          staff.id,
-          'New Admission Submission',
-          `${data.studentName} has submitted an admission form. Form ID: ${formNumber}`,
-          'INFO',
-        );
-      }
+      await this.notificationsService.notifyRoles(
+        ['ADMIN', 'ACADEMIC_OPERATIONS'],
+        'New Admission Submission',
+        `${data.studentName} has submitted an admission form. Form ID: ${formNumber}`,
+        'INFO',
+      );
     } catch (error) {
       console.error('Failed to notify staff about admission:', error);
     }
@@ -127,16 +118,16 @@ export class AdmissionsService {
       include: { student: { select: { id: true, name: true } } },
     });
 
-    // Notify student about approval
+    // Notify student and parents about approval
     try {
-      await this.notificationsService.create(
+      await this.notificationsService.notifyStudentAndParents(
         admission.studentId,
         'Admission Approved',
         `Welcome to Adhyayan, ${admission.student.name}! Your admission has been approved. You can now access all student features.`,
         'INFO',
       );
     } catch (error) {
-      console.error('Failed to notify student about admission approval:', error);
+      console.error('Failed to notify about admission approval:', error);
     }
 
     return admission;
@@ -149,16 +140,16 @@ export class AdmissionsService {
       include: { student: { select: { id: true } } },
     });
 
-    // Notify student about rejection
+    // Notify student and parents about rejection
     try {
-      await this.notificationsService.create(
+      await this.notificationsService.notifyStudentAndParents(
         admission.studentId,
         'Admission Status Update',
         'Your admission request has been rejected. Please contact the academic office for more details.',
         'ALERT',
       );
     } catch (error) {
-      console.error('Failed to notify student about admission rejection:', error);
+      console.error('Failed to notify about admission rejection:', error);
     }
 
     return admission;

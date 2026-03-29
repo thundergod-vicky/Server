@@ -338,7 +338,7 @@ export class UsersService {
       }
 
       if (message) {
-        await this.notificationsService.create(
+        await this.notificationsService.notifyStudentAndParents(
           studentId,
           'Academic Status Updated',
           message,

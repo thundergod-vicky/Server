@@ -94,20 +94,12 @@ export class AuthService {
 
     // Notify Admins and Academic Operations about new registration
     try {
-      const staffUsers = await this.prisma.user.findMany({
-        where: {
-          role: { in: ['ADMIN', 'ACADEMIC_OPERATIONS'] },
-        },
-      });
-
-      for (const staff of staffUsers) {
-        await this.notificationsService.create(
-          staff.id,
-          'New User Registered',
-          `A new ${registerDto.role.toLowerCase()} named ${registerDto.name} (${registerDto.email}) has just joined the platform.`,
-          'INFO',
-        );
-      }
+      await this.notificationsService.notifyRoles(
+        ['ADMIN', 'ACADEMIC_OPERATIONS'],
+        'New User Registered',
+        `A new ${registerDto.role.toLowerCase()} named ${registerDto.name} (${registerDto.email}) has just joined the platform.`,
+        'INFO',
+      );
     } catch (error) {
       console.error('Failed to notify staff about registration:', error);
     }

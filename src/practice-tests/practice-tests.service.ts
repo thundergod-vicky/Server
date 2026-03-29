@@ -101,18 +101,37 @@ export class PracticeTestsService {
       },
     });
 
-    // Notify the teacher who created the test
+    // Notify Teacher and relevant staff
     try {
+      const message = `${result.student.name} has completed the test "${result.test.title}" with a score of ${data.score}/${data.total} (Rating: ${result.rating}/5.0).`;
+      
+      // 1. Notify the teacher who created the test
       if (result.test.teacherId) {
         await this.notificationsService.create(
           result.test.teacherId,
           'Practice Test Completed',
-          `${result.student.name} has completed the test "${result.test.title}" with a score of ${data.score}/${data.total} (Rating: ${result.rating}/5.0).`,
+          message,
           'INFO',
         );
       }
+
+      // 2. Notify student and parents
+      await this.notificationsService.notifyStudentAndParents(
+        studentId,
+        'Practice Test Completed',
+        `You've completed "${result.test.title}" with a score of ${data.score}/${data.total}. Keep up the good work!`,
+        'INFO'
+      );
+
+      // 3. Notify relevant staff
+      await this.notificationsService.notifyRoles(
+        ['ADMIN', 'ACADEMIC_OPERATIONS'],
+        'Practice Test Completed',
+        message,
+        'INFO'
+      );
     } catch (error) {
-      console.error('Failed to notify teacher about test result:', error);
+      console.error('Failed to notify about test result:', error);
     }
 
     return result;
