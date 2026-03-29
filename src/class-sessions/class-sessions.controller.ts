@@ -10,13 +10,17 @@ import {
   UseGuards,
   Patch,
   ForbiddenException,
+  Res,
+  NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { ClassSessionsService } from './class-sessions.service';
+import { DriveWatcherService } from './drive-watcher.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../auth/roles.guard';
 import { Roles } from '../auth/roles.decorator';
 import { Role } from '@prisma/client';
-import { Request as ExpressRequest } from 'express';
+import type { Request as ExpressRequest, Response } from 'express';
 
 interface RequestWithUser extends ExpressRequest {
   user: {
@@ -30,7 +34,11 @@ interface RequestWithUser extends ExpressRequest {
 @Controller('class-sessions')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class ClassSessionsController {
-  constructor(private readonly service: ClassSessionsService) {}
+  private readonly logger = new Logger(ClassSessionsController.name);
+  constructor(
+    private readonly service: ClassSessionsService,
+    private readonly driveWatcher: DriveWatcherService,
+  ) {}
 
   @Post()
   @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS)
@@ -126,6 +134,47 @@ export class ClassSessionsController {
   @Roles(Role.ADMIN, Role.ACADEMIC_OPERATIONS)
   remove(@Param('id') id: string) {
     return this.service.delete(id);
+  }
+
+  @Get('attend/:id')
+  @Roles(Role.STUDENT, Role.ADMIN, Role.TEACHER) // Admin allowed for testing
+  async attend(
+    @Param('id') id: string,
+    @Request() req: RequestWithUser,
+    @Res() res: Response,
+  ) {
+    const session = await this.service.findOne(id);
+    if (!session) {
+      throw new NotFoundException('Class session not found');
+    }
+
+    if (!session.meetingUrl) {
+      throw new NotFoundException('Meeting URL not available for this session');
+    }
+
+    // Log attendance
+    await this.service.logAttendance(id, req.user.id);
+
+    // Redirect to meeting
+    return res.redirect(session.meetingUrl);
+  }
+
+  @Post('recordings/webhook')
+  @Roles(Role.ADMIN) // Security: In production, verify Google signature/headers
+  handleRecordingWebhook(
+    @Request() req: any,
+    @Query('id') sessionId: string,
+  ) {
+    // Google Drive Push Notifications send file info in headers or body depending on setup
+    // For now, we'll trigger a manual sync of the recordings folder
+    this.logger.log(`Received Drive Webhook for session: ${sessionId}`);
+
+    // Trigger sync (this is fire-and-forget to respond to Google quickly)
+    this.driveWatcher.syncRecentRecordings(sessionId).catch((err) => {
+      this.logger.error(`Sync failed for session ${sessionId}`, err);
+    });
+
+    return { success: true };
   }
 
   // Artifacts

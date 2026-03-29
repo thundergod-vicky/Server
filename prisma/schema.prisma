@@ -138,6 +138,7 @@ model User {
   createdExams    Exam[]         @relation("CreatedExams")
   examResults     ExamResult[]
   admission       Admission?
+  attendance      Attendance[]   @relation("StudentAttendance")
 }
 
 model Subject {
@@ -200,6 +201,7 @@ model ClassSession {
 
   recordings  SessionRecording[]
   attachments SessionAttachment[]
+  attendance  Attendance[]        @relation("SessionAttendance")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -654,4 +656,15 @@ model Admission {
 
   createdAt             DateTime @default(now())
   updatedAt             DateTime @updatedAt
+}
+
+model Attendance {
+  id        String   @id @default(cuid())
+  studentId String
+  student   User     @relation("StudentAttendance", fields: [studentId], references: [id])
+  sessionId String
+  session   ClassSession @relation("SessionAttendance", fields: [sessionId], references: [id], onDelete: Cascade)
+  timestamp DateTime @default(now())
+
+  @@unique([studentId, sessionId])
 }

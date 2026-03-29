@@ -22,6 +22,8 @@ import { BillingModule } from './billing/billing.module';
 import { ExamsModule } from './exams/exams.module';
 import { RecordingsModule } from './recordings/recordings.module';
 import { AdmissionsModule } from './admissions/admissions.module';
+import { GoogleModule } from './google/google.module';
+import { WebhooksModule } from './webhooks/webhooks.module';
 
 @Module({
   imports: [
@@ -46,6 +48,8 @@ import { AdmissionsModule } from './admissions/admissions.module';
     ExamsModule,
     RecordingsModule,
     AdmissionsModule,
+    GoogleModule,
+    WebhooksModule,
   ],
   controllers: [AppController],
   providers: [AppService],

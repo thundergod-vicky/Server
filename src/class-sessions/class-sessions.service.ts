@@ -1,14 +1,17 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ZoomService } from '../zoom/zoom.service';
+import { GoogleService } from '../google/google.service';
 
 @Injectable()
 export class ClassSessionsService {
+  private readonly logger = new Logger(ClassSessionsService.name);
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private zoomService: ZoomService,
+    private googleService: GoogleService,
   ) {}
 
   async create(data: {
@@ -26,34 +29,21 @@ export class ClassSessionsService {
     meetingId?: string;
     meetingPasscode?: string;
   }) {
-    const meetingUrl: string | null = data.meetingUrl || null;
-    const meetingId: string | null = data.meetingId || null;
+    let meetingUrl: string | null = data.meetingUrl || null;
+    let meetingId: string | null = data.meetingId || null;
     const meetingPasscode: string | null = data.meetingPasscode || null;
 
-    /* 
-    // Auto-generation disabled as per user request to favor manual entry
     if (data.isOnline && !meetingUrl) {
-      const start = new Date(`${data.date.split('T')[0]}T${data.startTime}:00`);
-      const end = new Date(`${data.date.split('T')[0]}T${data.endTime}:00`);
-      const duration = Math.max(
-        30,
-        Math.round((end.getTime() - start.getTime()) / 60000),
-      );
-
-      try {
-        const meeting = await this.zoomService.createMeeting(
-          data.title,
-          start.toISOString(),
-          duration,
-        );
-        meetingUrl = meeting.joinUrl;
-        meetingId = meeting.meetingId;
-      } catch (err) {
-        // Fallback or ignore if zoom fails, just create an offline class, or log it
-        console.error('Failed to create zoom meeting for class session', err);
+      const meet = await this.ensureMeetingUrl({
+        ...data,
+        teacherId: data.teacherId,
+      });
+      if (meet) {
+        meetingUrl = meet.meetLink;
+        // For Google Meet, we often use the URL as ID if none provided
+        meetingId = meetingId || meet.spaceCode;
       }
     }
-    */
 
     const session = await this.prisma.classSession.create({
       data: {
@@ -116,28 +106,90 @@ export class ClassSessionsService {
       meetingPasscode?: string;
     },
   ) {
+    const current = await this.prisma.classSession.findUnique({ where: { id } });
+    if (!current) throw new NotFoundException('Session not found');
+
+    const updateData: any = {
+      ...(data.title && { title: data.title }),
+      ...(data.type && { type: data.type }),
+      ...(data.teacherId && { teacherId: data.teacherId }),
+      ...(data.batchId && { batchId: data.batchId }),
+      ...(data.subjectId !== undefined && {
+        subjectId: data.subjectId || null,
+      }),
+      ...(data.date && { date: new Date(data.date) }),
+      ...(data.startTime && { startTime: data.startTime }),
+      ...(data.endTime && { endTime: data.endTime }),
+      ...(data.venue !== undefined && { venue: data.venue }),
+      ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
+      ...(data.meetingUrl !== undefined && { meetingUrl: data.meetingUrl }),
+      ...(data.meetingId !== undefined && { meetingId: data.meetingId }),
+      ...(data.meetingPasscode !== undefined && {
+        meetingPasscode: data.meetingPasscode,
+      }),
+    };
+
+    // If toggled to online and no URL exists, generate one
+    if (
+      (data.isOnline === true || (current.isOnline && data.isOnline !== false)) &&
+      !updateData.meetingUrl &&
+      !current.meetingUrl
+    ) {
+      const meet = await this.ensureMeetingUrl({
+        title: data.title || current.title,
+        date: data.date || current.date.toISOString(),
+        startTime: data.startTime || current.startTime,
+        endTime: data.endTime || current.endTime,
+        teacherId: data.teacherId || current.teacherId,
+      });
+      if (meet) {
+        updateData.meetingUrl = meet.meetLink;
+        updateData.meetingId = updateData.meetingId || meet.spaceCode;
+      }
+    }
+
     return this.prisma.classSession.update({
       where: { id },
-      data: {
-        ...(data.title && { title: data.title }),
-        ...(data.type && { type: data.type }),
-        ...(data.teacherId && { teacherId: data.teacherId }),
-        ...(data.batchId && { batchId: data.batchId }),
-        ...(data.subjectId !== undefined && {
-          subjectId: data.subjectId || null,
-        }),
-        ...(data.date && { date: new Date(data.date) }),
-        ...(data.startTime && { startTime: data.startTime }),
-        ...(data.endTime && { endTime: data.endTime }),
-        ...(data.venue !== undefined && { venue: data.venue }),
-        ...(data.isOnline !== undefined && { isOnline: data.isOnline }),
-        ...(data.meetingUrl !== undefined && { meetingUrl: data.meetingUrl }),
-        ...(data.meetingId !== undefined && { meetingId: data.meetingId }),
-        ...(data.meetingPasscode !== undefined && {
-          meetingPasscode: data.meetingPasscode,
-        }),
-      },
+      data: updateData,
     });
+  }
+
+  private async ensureMeetingUrl(data: {
+    title: string;
+    date: string;
+    startTime: string;
+    endTime: string;
+    teacherId: string;
+  }) {
+    try {
+      const datePart = data.date.split('T')[0];
+      const start = new Date(`${datePart}T${data.startTime}:00`);
+      const end = new Date(`${datePart}T${data.endTime}:00`);
+
+      // Fetch teacher email
+      const teacher = await this.prisma.user.findUnique({
+        where: { id: data.teacherId },
+        select: { email: true },
+      });
+
+      this.logger.log(
+        `Generating Google Meet link for: ${data.title} (Teacher: ${teacher?.email})`,
+      );
+      const result = await this.googleService.createMeetLink(
+        data.title,
+        start,
+        end,
+        teacher?.email,
+      );
+
+      // Subscribe to recording events for this space
+      await this.googleService.subscribeToRecording(result.spaceCode);
+
+      return result;
+    } catch (err) {
+      this.logger.error('Failed to ensure Google Meet link', err);
+      return null;
+    }
   }
 
   async findOne(id: string) {
@@ -367,6 +419,16 @@ export class ClassSessionsService {
     }
 
     return null;
+  }
+
+  async logAttendance(sessionId: string, studentId: string) {
+    return this.prisma.attendance.upsert({
+      where: {
+        studentId_sessionId: { studentId, sessionId },
+      },
+      update: { timestamp: new Date() }, // Update timestamp if they click again
+      create: { studentId, sessionId },
+    });
   }
 
   async delete(id: string) {

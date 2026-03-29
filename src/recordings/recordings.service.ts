@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
-import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  DeleteObjectsCommand,
+} from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
+import { GoogleService } from '../google/google.service';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -23,7 +28,10 @@ export class RecordingsService {
   private s3: S3Client;
   private cloudfrontPrivateKey: string;
 
-  constructor(private prisma: PrismaService) {
+  constructor(
+    private prisma: PrismaService,
+    private googleService: GoogleService,
+  ) {
     this.s3 = new S3Client({ region: process.env.AWS_S3_REGION || 'ap-south-1' });
 
     // Read CloudFront private key from file
@@ -164,9 +172,7 @@ export class RecordingsService {
     // Try to find a matching session — Zoom UUIDs are unique per instance,
     // but the numeric meetingId is what we store. We'll try to match.
     // If no match is found, we store them anyway for later matching.
-    let matchedSession = sessions.find(
-      (s) => s.meetingId === zoomMeetingUuid,
-    );
+    const matchedSession = sessions.find((s) => s.meetingId === zoomMeetingUuid);
 
     if (!matchedSession) {
       // The UUID might not match directly — store a placeholder URL
@@ -220,24 +226,20 @@ export class RecordingsService {
    * Step 2: Lambda calls this after uploading all files to S3.
    * Updates recordings with S3 keys and sets status='ready'.
    */
-  async markReady(
-    zoomMeetingUuid: string,
-    savedFiles: SavedFileInput[],
-  ) {
+  async markReady(zoomMeetingUuid: string, savedFiles: SavedFileInput[]) {
     let updated = 0;
 
     for (const file of savedFiles) {
       try {
         // Find the recording by URL pattern
-        const recording =
-          await this.prisma.sessionRecording.findFirst({
-            where: {
-              OR: [
-                { zoomFileId: file.zoomFileId },
-                { url: `zoom://${zoomMeetingUuid}/${file.zoomFileId}` },
-              ],
-            },
-          });
+        const recording = await this.prisma.sessionRecording.findFirst({
+          where: {
+            OR: [
+              { zoomFileId: file.zoomFileId },
+              { url: `zoom://${zoomMeetingUuid}/${file.zoomFileId}` },
+            ],
+          },
+        });
 
         if (recording) {
           await this.prisma.sessionRecording.update({
@@ -259,6 +261,113 @@ export class RecordingsService {
     }
 
     return { updated };
+  }
+
+  /**
+   * Stream a file from Google Drive directly to AWS S3
+   */
+  async processDriveRecording(fileId: string, sessionId: string) {
+    try {
+      // 1. Get Metadata
+      const metadata = await this.googleService.getFileMetadata(fileId);
+      const fileName = metadata.name || `Recording-${fileId}.mp4`;
+      const s3Key = `recordings/${sessionId}/${Date.now()}-${fileName}`;
+
+      // 2. Create/Update record as processing
+      const recording = await this.prisma.sessionRecording.upsert({
+        where: {
+          sessionId_url: {
+            sessionId,
+            url: `drive://${fileId}`,
+          },
+        },
+        create: {
+          sessionId,
+          title: fileName.replace('.mp4', ''),
+          url: `drive://${fileId}`,
+          status: 'processing',
+          fileType: 'MP4',
+          recordedAt: metadata.createdTime
+            ? new Date(metadata.createdTime)
+            : new Date(),
+        },
+        update: {
+          status: 'processing',
+        },
+      });
+
+      // 3. Get stream from Google Drive
+      const driveStream = await this.googleService.getFileStream(fileId);
+
+      // 4. Upload to S3 using streaming (multipart upload)
+      const upload = new Upload({
+        client: this.s3,
+        params: {
+          Bucket: process.env.AWS_S3_BUCKET_NAME || 'src-adhyayan',
+          Key: s3Key,
+          Body: driveStream,
+          ContentType: 'video/mp4',
+        },
+      });
+
+      await upload.done();
+
+      // 5. Mark as ready
+      await this.prisma.sessionRecording.update({
+        where: { id: recording.id },
+        data: {
+          s3Key: s3Key,
+          status: 'ready',
+        },
+      });
+
+      console.log(
+        `[RecordingsService] Successfully transferred Drive file ${fileId} to S3 bucket`,
+      );
+      return { success: true, recordingId: recording.id };
+    } catch (error) {
+      console.error(
+        `[RecordingsService] Failed to process Drive recording ${fileId}`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Called by the WebhookController when a new recording file is generated.
+   */
+  async processNewRecording(meetingUri: string, driveFileId: string) {
+    try {
+      // Find the session associated with this meeting URI
+      // meetingUri typically looks like https://meet.google.com/abc-defg-hij
+      const session = await this.prisma.classSession.findFirst({
+        where: {
+          meetingUrl: {
+            contains: meetingUri,
+          },
+        },
+      });
+
+      if (!session) {
+        console.warn(
+          `[RecordingsService] Webhook received for unknown meeting: ${meetingUri}`,
+        );
+        return;
+      }
+
+      console.log(
+        `[RecordingsService] Triggering recording transfer for session ${session.id} (Meeting: ${meetingUri})`,
+      );
+
+      // Start the Drive-to-S3 transfer
+      return this.processDriveRecording(driveFileId, session.id);
+    } catch (error) {
+      console.error(
+        `[RecordingsService] Error processing new recording event for ${meetingUri}`,
+        error,
+      );
+    }
   }
 
   /**
