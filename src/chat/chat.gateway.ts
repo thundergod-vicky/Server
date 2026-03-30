@@ -19,6 +19,8 @@ import { MessageType } from '@prisma/client';
       'http://localhost:3001',
       'https://adhyayan-trial.netlify.app',
       'https://adhyayan-backend-0eak.onrender.com',
+      'https://app.adhyayanedu.in',
+      'https://api.adhyayanedu.in',
     ],
     credentials: true,
   },

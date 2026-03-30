@@ -335,6 +335,7 @@ export class AdminService {
       this.prisma.loginHistory.deleteMany({ where: { userId } }),
       this.prisma.notification.deleteMany({ where: { userId } }),
       this.prisma.invoice.deleteMany({ where: { studentId: userId } }),
+      this.prisma.admission.deleteMany({ where: { studentId: userId } }),
     ]);
 
     return this.prisma.user.delete({
