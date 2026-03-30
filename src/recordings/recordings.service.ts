@@ -1,7 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
-import { S3Client, DeleteObjectsCommand } from '@aws-sdk/client-s3';
+import { S3Client, DeleteObjectsCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import { Upload } from '@aws-sdk/lib-storage';
 import * as fs from 'fs';
 import * as path from 'path';
 
@@ -259,6 +260,71 @@ export class RecordingsService {
     }
 
     return { updated };
+  }
+
+  /**
+   * Sync a recording from Webinar.gg - downloads from URL and uploads to S3
+   */
+  async syncWebinarRecording(sessionId: string, mp4Url: string, title: string) {
+    const s3Key = `recordings/webinar-gg/${sessionId}/${Date.now()}.mp4`;
+    
+    // Create the recording record with 'processing' status
+    const recording = await this.prisma.sessionRecording.upsert({
+      where: {
+        sessionId_url: {
+          sessionId,
+          url: mp4Url,
+        },
+      },
+      create: {
+        sessionId,
+        title,
+        url: mp4Url,
+        fileType: 'MP4',
+        status: 'processing',
+      },
+      update: {
+        status: 'processing',
+      },
+    });
+
+    try {
+      const response = await fetch(mp4Url);
+      if (!response.ok || !response.body) {
+        throw new Error(`Failed to download recording: ${response.statusText}`);
+      }
+
+      // Upload to S3 using lib-storage for streaming support
+      const upload = new Upload({
+        client: this.s3,
+        params: {
+          Bucket: process.env.AWS_S3_BUCKET_NAME!,
+          Key: s3Key,
+          Body: response.body as any,
+          ContentType: 'video/mp4',
+        },
+      });
+
+      await upload.done();
+
+      // Mark as ready
+      await this.prisma.sessionRecording.update({
+        where: { id: recording.id },
+        data: {
+          s3Key,
+          status: 'ready',
+        },
+      });
+
+      return { success: true, recordingId: recording.id };
+    } catch (err) {
+      console.error(`[RecordingsService] Webinar sync failed for ${sessionId}:`, err);
+      await this.prisma.sessionRecording.update({
+        where: { id: recording.id },
+        data: { status: 'failed' as any }, // Assuming failed is a valid status or just leaving it in processing
+      });
+      throw err;
+    }
   }
 
   /**
