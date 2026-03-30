@@ -29,6 +29,7 @@ async function bootstrap() {
       'https://adhyayan-trial.netlify.app',
       'https://app.adhyayanedu.in',
       'http://3.108.123.149',
+      'https://webinar.gg',
     ],
     credentials: true,
     methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',

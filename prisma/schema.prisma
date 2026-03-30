@@ -138,6 +138,8 @@ model User {
   createdExams    Exam[]         @relation("CreatedExams")
   examResults     ExamResult[]
   admission       Admission?
+  
+  sessionAttendance SessionAttendance[]
 }
 
 model Subject {
@@ -190,7 +192,7 @@ model ClassSession {
   venue     String?
   notified  Boolean     @default(false)
 
-  // zoom integration
+  // zoom integration (Legacy)
   isOnline   Boolean @default(false)
   meetingUrl String?
   meetingId  String?
@@ -198,11 +200,38 @@ model ClassSession {
   recordingUrl String?
   recordingPasscode String?
 
+  // webinar.gg integration
+  webinarId         String?
+  webinarAccountId  String?
+  webinarAccount    WebinarGGAccount? @relation(fields: [webinarAccountId], references: [id])
+  attendance       SessionAttendance[]
+
   recordings  SessionRecording[]
   attachments SessionAttachment[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model WebinarGGAccount {
+  id        String   @id @default(cuid())
+  name      String
+  apiKey    String   // AES-256 encrypted
+  isActive  Boolean  @default(true)
+  sessions  ClassSession[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model SessionAttendance {
+  id          String       @id @default(cuid())
+  sessionId   String
+  studentId   String
+  joinedAt    DateTime     @default(now())
+  session     ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  
+  @@unique([sessionId, studentId])
 }
 
 model SessionRecording {

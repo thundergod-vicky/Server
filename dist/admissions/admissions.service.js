@@ -11,6 +11,7 @@ Object.defineProperty(exports, "AdmissionsService", {
 const _common = require("@nestjs/common");
 const _prismaservice = require("../prisma/prisma.service");
 const _s3service = require("../content/s3.service");
+const _notificationsservice = require("../notifications/notifications.service");
 function _ts_decorate(decorators, target, key, desc) {
     var c = arguments.length, r = c < 3 ? target : desc === null ? desc = Object.getOwnPropertyDescriptor(target, key) : desc, d;
     if (typeof Reflect === "object" && typeof Reflect.decorate === "function") r = Reflect.decorate(decorators, target, key, desc);
@@ -38,7 +39,7 @@ let AdmissionsService = class AdmissionsService {
             photoUrl = uploadResult.webViewLink;
         }
         const { formNumber, enrollmentNumber } = await this.getNextNumbers();
-        return this.prisma.admission.create({
+        const admission = await this.prisma.admission.create({
             data: {
                 studentId: userId,
                 studentName: data.studentName,
@@ -63,6 +64,15 @@ let AdmissionsService = class AdmissionsService {
                 admissionDate: new Date()
             }
         });
+        try {
+            await this.notificationsService.notifyRoles([
+                'ADMIN',
+                'ACADEMIC_OPERATIONS'
+            ], 'New Admission Submission', `${data.studentName} has submitted an admission form. Form ID: ${formNumber}`, 'INFO');
+        } catch (error) {
+            console.error('Failed to notify staff about admission:', error);
+        }
+        return admission;
     }
     async getMyAdmission(userId) {
         return this.prisma.admission.findUnique({
@@ -95,7 +105,7 @@ let AdmissionsService = class AdmissionsService {
         }));
     }
     async approveAdmission(id, approvedBy) {
-        return this.prisma.admission.update({
+        const admission = await this.prisma.admission.update({
             where: {
                 id
             },
@@ -103,18 +113,47 @@ let AdmissionsService = class AdmissionsService {
                 status: 'APPROVED',
                 approvedById: approvedBy,
                 approvedAt: new Date()
+            },
+            include: {
+                student: {
+                    select: {
+                        id: true,
+                        name: true
+                    }
+                }
             }
         });
+        // Notify student and parents about approval
+        try {
+            await this.notificationsService.notifyStudentAndParents(admission.studentId, 'Admission Approved', `Welcome to Adhyayan, ${admission.student.name}! Your admission has been approved. You can now access all student features.`, 'INFO');
+        } catch (error) {
+            console.error('Failed to notify about admission approval:', error);
+        }
+        return admission;
     }
     async rejectAdmission(id) {
-        return this.prisma.admission.update({
+        const admission = await this.prisma.admission.update({
             where: {
                 id
             },
             data: {
                 status: 'REJECTED'
+            },
+            include: {
+                student: {
+                    select: {
+                        id: true
+                    }
+                }
             }
         });
+        // Notify student and parents about rejection
+        try {
+            await this.notificationsService.notifyStudentAndParents(admission.studentId, 'Admission Status Update', 'Your admission request has been rejected. Please contact the academic office for more details.', 'ALERT');
+        } catch (error) {
+            console.error('Failed to notify about admission rejection:', error);
+        }
+        return admission;
     }
     async updateAdmission(id, data) {
         return this.prisma.admission.update({
@@ -224,9 +263,10 @@ let AdmissionsService = class AdmissionsService {
             contentType: metadata.mimeType
         };
     }
-    constructor(prisma, s3Service){
+    constructor(prisma, s3Service, notificationsService){
         this.prisma = prisma;
         this.s3Service = s3Service;
+        this.notificationsService = notificationsService;
     }
 };
 AdmissionsService = _ts_decorate([
@@ -234,7 +274,8 @@ AdmissionsService = _ts_decorate([
     _ts_metadata("design:type", Function),
     _ts_metadata("design:paramtypes", [
         typeof _prismaservice.PrismaService === "undefined" ? Object : _prismaservice.PrismaService,
-        typeof _s3service.S3Service === "undefined" ? Object : _s3service.S3Service
+        typeof _s3service.S3Service === "undefined" ? Object : _s3service.S3Service,
+        typeof _notificationsservice.NotificationsService === "undefined" ? Object : _notificationsservice.NotificationsService
     ])
 ], AdmissionsService);
 

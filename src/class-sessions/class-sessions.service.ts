@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { ZoomService } from '../zoom/zoom.service';
+import { WebinarGGService } from '../webinar-gg/webinar-gg.service';
 
 @Injectable()
 export class ClassSessionsService {
@@ -9,6 +10,7 @@ export class ClassSessionsService {
     private prisma: PrismaService,
     private notifications: NotificationsService,
     private zoomService: ZoomService,
+    private webinarService: WebinarGGService,
   ) {}
 
   async create(data: {
@@ -30,30 +32,7 @@ export class ClassSessionsService {
     const meetingId: string | null = data.meetingId || null;
     const meetingPasscode: string | null = data.meetingPasscode || null;
 
-    /* 
-    // Auto-generation disabled as per user request to favor manual entry
-    if (data.isOnline && !meetingUrl) {
-      const start = new Date(`${data.date.split('T')[0]}T${data.startTime}:00`);
-      const end = new Date(`${data.date.split('T')[0]}T${data.endTime}:00`);
-      const duration = Math.max(
-        30,
-        Math.round((end.getTime() - start.getTime()) / 60000),
-      );
-
-      try {
-        const meeting = await this.zoomService.createMeeting(
-          data.title,
-          start.toISOString(),
-          duration,
-        );
-        meetingUrl = meeting.joinUrl;
-        meetingId = meeting.meetingId;
-      } catch (err) {
-        // Fallback or ignore if zoom fails, just create an offline class, or log it
-        console.error('Failed to create zoom meeting for class session', err);
-      }
-    }
-    */
+    const webinarData = data.isOnline ? await this.ensureWebinar(data) : null;
 
     const session = await this.prisma.classSession.create({
       data: {
@@ -70,6 +49,10 @@ export class ClassSessionsService {
         meetingUrl: meetingUrl,
         meetingId: meetingId,
         meetingPasscode: meetingPasscode,
+        ...(webinarData && {
+          webinarId: webinarData.webinarId,
+          webinarAccountId: webinarData.webinarAccountId,
+        }),
       },
       include: {
         teacher: { select: { id: true, name: true } },
@@ -77,24 +60,7 @@ export class ClassSessionsService {
       },
     });
 
-    // Send notification to teacher
-    await this.notifications.create(
-      session.teacher.id,
-      `New Class Scheduled`,
-      `You have a new ${session.type.toLowerCase()} session: "${session.title}" on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.`,
-      'INFO',
-    );
-
-    // Send notification to all students in the batch
-    for (const student of session.batch.students) {
-      await this.notifications.create(
-        student.id,
-        `New Class Scheduled`,
-        `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.${session.isOnline ? ' This is an online session. Join Link is available in the schedule.' : ''}`,
-        'INFO',
-      );
-    }
-
+    await this.sendSessionNotifications(session);
     return session;
   }
 
@@ -116,6 +82,28 @@ export class ClassSessionsService {
       meetingPasscode?: string;
     },
   ) {
+    const session = await this.prisma.classSession.findUnique({
+      where: { id },
+    });
+
+    if (!session) {
+      throw new Error('Session not found');
+    }
+
+    // Determine if we need to generate/update webinar
+    const updatedIsOnline = data.isOnline !== undefined ? data.isOnline : session.isOnline;
+    let webinarData: { webinarId: string; webinarAccountId: string } | null = null;
+
+    if (updatedIsOnline && !session.webinarId) {
+      webinarData = await this.ensureWebinar({
+        title: data.title || session.title,
+        date: data.date || session.date,
+        startTime: data.startTime || session.startTime,
+        endTime: data.endTime || session.endTime,
+        isOnline: true,
+      });
+    }
+
     return this.prisma.classSession.update({
       where: { id },
       data: {
@@ -135,6 +123,10 @@ export class ClassSessionsService {
         ...(data.meetingId !== undefined && { meetingId: data.meetingId }),
         ...(data.meetingPasscode !== undefined && {
           meetingPasscode: data.meetingPasscode,
+        }),
+        ...(webinarData && {
+          webinarId: webinarData.webinarId,
+          webinarAccountId: webinarData.webinarAccountId,
         }),
       },
     });
@@ -371,5 +363,74 @@ export class ClassSessionsService {
 
   async delete(id: string) {
     return this.prisma.classSession.delete({ where: { id } });
+  }
+
+  private async ensureWebinar(data: {
+    title: string;
+    date: string | Date;
+    startTime: string;
+    endTime: string;
+    isOnline?: boolean;
+    webinarId?: string | null;
+  }) {
+    if (!data.isOnline || data.webinarId) {
+      return null;
+    }
+
+    const date = new Date(data.date);
+    const account = await this.webinarService.findAvailableAccount(
+      date,
+      data.startTime,
+      data.endTime,
+    );
+
+    if (!account) {
+      throw new Error('No available Webinar.gg accounts for this time slot.');
+    }
+
+    try {
+      const meeting = await this.webinarService.createMeeting({
+        title: data.title,
+        date: date.toISOString().split('T')[0],
+        time: data.startTime,
+        meridiem: this.getMeridiem(data.startTime),
+        timezone: 'Asia/Kolkata', // Default to Kolkata as per context
+        recordingEnabled: true,
+        apiKey: account.decryptedApiKey,
+      });
+
+      return {
+        webinarId: meeting.id,
+        webinarAccountId: account.id,
+      };
+    } catch (err: any) {
+      console.error('[ClassSessionsService] Webinar generation failed:', err);
+      throw new Error(`Webinar generation failed: ${err.message}`);
+    }
+  }
+
+  private getMeridiem(timeStr: string): string {
+    const [hrs] = timeStr.split(':').map(Number);
+    return hrs >= 12 ? 'PM' : 'AM';
+  }
+
+  private async sendSessionNotifications(session: any) {
+    // Send notification to teacher
+    await this.notifications.create(
+      session.teacher.id,
+      `New Class Scheduled`,
+      `You have a new ${session.type.toLowerCase()} session: "${session.title}" on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.`,
+      'INFO',
+    );
+
+    // Send notification to all students in the batch
+    for (const student of session.batch.students) {
+      await this.notifications.create(
+        student.id,
+        `New Class Scheduled`,
+        `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.${session.isOnline ? ' This is an online session. Join Link is available in the schedule.' : ''}`,
+        'INFO',
+      );
+    }
   }
 }
