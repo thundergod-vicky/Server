@@ -3,10 +3,14 @@ import { Prisma, Role } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcrypt';
 import * as crypto from 'crypto';
+import { EncryptionService } from '../webinar-gg/encryption.service';
 
 @Injectable()
 export class AdminService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private encryption: EncryptionService,
+  ) {}
 
   async getGlobalStats() {
     const [
@@ -106,6 +110,11 @@ export class AdminService {
     // Hash password if provided
     if (data.password && typeof data.password === 'string') {
       data.password = await bcrypt.hash(data.password, 10);
+    }
+
+    // Encrypt Webinar API Key if provided
+    if (data.webinarApiKey && typeof data.webinarApiKey === 'string') {
+      data.webinarApiKey = this.encryption.encrypt(data.webinarApiKey);
     }
 
     return this.prisma.user.update({

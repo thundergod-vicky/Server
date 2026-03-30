@@ -9,12 +9,23 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { Request } from 'express';
 import { WebinarGGService } from './webinar-gg.service';
 import { EncryptionService } from './encryption.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RecordingsService } from '../recordings/recordings.service';
 import { Role } from '@prisma/client';
+
+interface RequestWithUser extends Request {
+  user: {
+    id?: string;
+    userId?: string;
+    email: string;
+    role: Role;
+    name?: string;
+  };
+}
 
 @Controller('webinars')
 export class WebinarsController {
@@ -27,22 +38,22 @@ export class WebinarsController {
 
   @UseGuards(JwtAuthGuard)
   @Post('join/:sessionId')
-  async join(@Param('sessionId') sessionId: string, @Req() req: any) {
+  async join(
+    @Param('sessionId') sessionId: string,
+    @Req() req: RequestWithUser,
+  ) {
     const user = req.user;
     const session = await this.prisma.classSession.findUnique({
       where: { id: sessionId },
-      include: { webinarAccount: true },
     });
 
-    if (!session || !session.webinarId || !session.webinarAccount) {
+    if (!session || !session.webinarId) {
       console.error(
         `[WebinarsController] Join failed for sessionId: ${sessionId}`,
       );
       if (!session) console.error('  - Reason: Session not found in database');
       else if (!session.webinarId)
         console.error('  - Reason: webinarId is missing on session');
-      else if (!session.webinarAccount)
-        console.error('  - Reason: webinarAccount relationship is missing');
 
       throw new NotFoundException(
         'Webinar session not found or not configured.',
@@ -57,32 +68,39 @@ export class WebinarsController {
 
     // LOG: Attendance for students
     if (user.role === Role.STUDENT) {
+      const studentId = user.id || user.userId;
+      if (!studentId) {
+        throw new InternalServerErrorException('User ID not found in token');
+      }
+
       console.log('  - Logging student attendance...');
       await this.prisma.sessionAttendance.upsert({
         where: {
           sessionId_studentId: {
             sessionId,
-            studentId: user.id || user.userId,
+            studentId,
           },
         },
         update: { joinedAt: new Date() },
         create: {
           sessionId,
-          studentId: user.id || user.userId,
+          studentId,
           joinedAt: new Date(),
         },
       });
     }
 
     // 2. Generate Join Token
-    const apiKey = this.encryption.decrypt(session.webinarAccount.apiKey);
+    // Fetch the assigned teacher's Webinar credentials
+    const teacherAccount = await this.webinarService.getTeacherWebinarAccount(
+      session.teacherId,
+    );
+    const apiKey = teacherAccount.apiKey;
 
     try {
-      const isHost = [
-        Role.TEACHER,
-        Role.ADMIN,
-        Role.ACADEMIC_OPERATIONS,
-      ].includes(user.role as Role);
+      const isHost = (
+        [Role.TEACHER, Role.ADMIN, Role.ACADEMIC_OPERATIONS] as Role[]
+      ).includes(user.role);
 
       // Identity for Webinar.gg
       let joinEmail: string;
@@ -90,15 +108,19 @@ export class WebinarsController {
       let lastName: string;
 
       if (isHost) {
-        // For hosts (teachers/admins), use the Webinar Account's email and a generic Organizer name
+        // For hosts (teachers/admins), use the assigned Teacher's Webinar credentials
         // This ensures Webinar.gg grants Host/Organizer privileges
-        joinEmail = session.webinarAccount.name;
-        firstName = 'Webinar';
-        lastName = 'Organizer';
+        joinEmail = teacherAccount.email || user.email;
+        const displayName: string =
+          teacherAccount.name || user.name || 'Webinar Organizer';
+        const nameParts = displayName.split(' ');
+        firstName = nameParts[0];
+        lastName = nameParts.slice(1).join(' ') || 'Organizer';
       } else {
         // For students, use their own identity for tracking
         joinEmail = user.email;
-        const names = (user.name || user.email || 'User Participant').split(' ');
+        const displayName: string = user.name || user.email || 'User Participant';
+        const names = displayName.split(' ');
         firstName = names[0];
         lastName = names.slice(1).join(' ') || 'Participant';
       }
@@ -114,6 +136,7 @@ export class WebinarsController {
         email: joinEmail,
         apiKey,
         passcode: '', // Standard webinars usually have no passcode or handled via token
+        role: isHost ? 'host' : 'audience', // Pass the correct role for token generation
       });
 
       const iframeUrl = `https://webinar.gg/webinar-page/${session.webinarId}?token=${token}`;
@@ -133,7 +156,7 @@ export class WebinarsController {
   }
 
   @Post('webhook')
-  async handleWebhook(@Body() body: any) {
+  async handleWebhook(@Body() body: { event: string; data: any }) {
     console.log('[WebinarGG Webhook] Received:', JSON.stringify(body));
 
     if (body.event === 'webinar.recording.created') {

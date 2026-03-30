@@ -32,7 +32,7 @@ export class ClassSessionsService {
     const meetingId: string | null = data.meetingId || null;
     const meetingPasscode: string | null = data.meetingPasscode || null;
 
-    const webinarData = data.isOnline ? await this.ensureWebinar(data) : null;
+    const webinarData = data.isOnline ? await this.ensureWebinar({ ...data, teacherId: data.teacherId }) : null;
 
     const session = await this.prisma.classSession.create({
       data: {
@@ -51,7 +51,6 @@ export class ClassSessionsService {
         meetingPasscode: meetingPasscode,
         ...(webinarData && {
           webinarId: webinarData.webinarId,
-          webinarAccountId: webinarData.webinarAccountId,
         }),
       },
       include: {
@@ -92,7 +91,7 @@ export class ClassSessionsService {
 
     // Determine if we need to generate/update webinar
     const updatedIsOnline = data.isOnline !== undefined ? data.isOnline : session.isOnline;
-    let webinarData: { webinarId: string; webinarAccountId: string } | null = null;
+    let webinarData: { webinarId: string } | null = null;
 
     if (updatedIsOnline && !session.webinarId) {
       webinarData = await this.ensureWebinar({
@@ -101,6 +100,7 @@ export class ClassSessionsService {
         startTime: data.startTime || session.startTime,
         endTime: data.endTime || session.endTime,
         isOnline: true,
+        teacherId: data.teacherId || session.teacherId,
       });
     }
 
@@ -126,7 +126,6 @@ export class ClassSessionsService {
         }),
         ...(webinarData && {
           webinarId: webinarData.webinarId,
-          webinarAccountId: webinarData.webinarAccountId,
         }),
       },
     });
@@ -372,21 +371,32 @@ export class ClassSessionsService {
     endTime: string;
     isOnline?: boolean;
     webinarId?: string | null;
+    teacherId: string;
   }) {
     if (!data.isOnline || data.webinarId) {
       return null;
     }
 
     const date = new Date(data.date);
-    const account = await this.webinarService.findAvailableAccount(
+    
+    // 1. Check teacher availability (Booked status)
+    const isAvailable = await this.webinarService.checkTeacherAvailability(
+      data.teacherId,
       date,
       data.startTime,
       data.endTime,
     );
 
-    if (!account) {
-      throw new Error('No available Webinar.gg accounts for this time slot.');
+    if (!isAvailable) {
+      throw new Error(
+        'Teacher is already booked for another session during this time slot.',
+      );
     }
+
+    // 2. Get Teacher's Webinar.gg Credentials
+    const account = await this.webinarService.getTeacherWebinarAccount(
+      data.teacherId,
+    );
 
     try {
       const meeting = await this.webinarService.createMeeting({
@@ -396,12 +406,11 @@ export class ClassSessionsService {
         meridiem: this.getMeridiem(data.startTime),
         timezone: 'Asia/Kolkata', // Default to Kolkata as per context
         recordingEnabled: true,
-        apiKey: account.decryptedApiKey,
+        apiKey: account.apiKey,
       });
 
       return {
         webinarId: meeting.id,
-        webinarAccountId: account.id,
       };
     } catch (err: any) {
       console.error('[ClassSessionsService] Webinar generation failed:', err);

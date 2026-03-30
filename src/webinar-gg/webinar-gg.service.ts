@@ -11,71 +11,59 @@ export class WebinarGGService {
     private encryption: EncryptionService,
   ) {}
 
-  async findAvailableAccount(
-    date: Date,
-    startTimeStr: string,
-    endTimeStr: string,
-  ) {
-    const accounts = await this.prisma.webinarGGAccount.findMany({
-      where: { isActive: true },
+  async getTeacherWebinarAccount(teacherId: string) {
+    const teacher = await this.prisma.user.findUnique({
+      where: { id: teacherId },
+      select: {
+        webinarApiKey: true,
+        webinarEmail: true,
+        webinarName: true,
+        role: true,
+      },
     });
 
-    if (accounts.length === 0) {
+    if (!teacher) {
+      throw new InternalServerErrorException('Teacher not found.');
+    }
+
+    if (!teacher.webinarApiKey) {
       throw new InternalServerErrorException(
-        'No active Webinar.gg accounts configured.',
+        'This teacher has no Webinar.gg account linked. Please configure it in User Management.',
       );
     }
 
-    // Overlap Check Strategy:
-    // Buffer = 1 min
-    // A meeting overlaps if its [start, end+1m] range intersects with the new [reqStart, reqEnd] range.
+    return {
+      apiKey: this.encryption.decrypt(teacher.webinarApiKey),
+      email: teacher.webinarEmail,
+      name: teacher.webinarName,
+    };
+  }
 
-    // For each account, check for overlaps on that date
-    for (const account of accounts) {
-      const overlaps = await this.prisma.classSession.findFirst({
-        where: {
-          webinarAccountId: account.id,
-          date: date,
-          OR: [
-            {
-              // Case: Existing session starts before new session ends
-              // And ends after new session starts (with 1 min buffer)
-              startTime: { lt: endTimeStr },
-              endTime: { gt: startTimeStr }, // Should be gt to be safe, but let's be precise
-            },
-          ],
-        },
-      });
+  async checkTeacherAvailability(
+    teacherId: string,
+    date: Date,
+    startTimeStr: string,
+    endTimeStr: string,
+    excludeSessionId?: string,
+  ) {
+    const overlappingSessions = await this.prisma.classSession.findMany({
+      where: {
+        teacherId: teacherId,
+        date: date,
+        id: excludeSessionId ? { not: excludeSessionId } : undefined,
+      },
+    });
 
-      // Precise intersection logic:
-      // (start1 < end2) AND (end1 > start2)
-      // With buffer: We treat end1 as (end1 + 1 min)
+    const hasOverlap = overlappingSessions.some((s) => {
+      const sStart = this.timeToMinutes(s.startTime);
+      const sEnd = this.timeToMinutes(s.endTime) + 1; // 1 min buffer
+      const rStart = this.timeToMinutes(startTimeStr);
+      const rEnd = this.timeToMinutes(endTimeStr);
 
-      const overlappingSessions = await this.prisma.classSession.findMany({
-        where: {
-          webinarAccountId: account.id,
-          date: date,
-        },
-      });
+      return sStart < rEnd && sEnd > rStart;
+    });
 
-      const hasOverlap = overlappingSessions.some((s) => {
-        const sStart = this.timeToMinutes(s.startTime);
-        const sEnd = this.timeToMinutes(s.endTime) + 1; // 1 min buffer
-        const rStart = this.timeToMinutes(startTimeStr);
-        const rEnd = this.timeToMinutes(endTimeStr);
-
-        return sStart < rEnd && sEnd > rStart;
-      });
-
-      if (!hasOverlap) {
-        return {
-          ...account,
-          decryptedApiKey: this.encryption.decrypt(account.apiKey),
-        };
-      }
-    }
-
-    return null; // All busy
+    return !hasOverlap;
   }
 
   private timeToMinutes(timeStr: string): number {
@@ -129,8 +117,19 @@ export class WebinarGGService {
     email: string;
     phone?: string;
     passcode?: string;
+    role?: string;
     apiKey: string;
   }) {
+    console.log('[WebinarGG API] Preparing Join Token Request:', {
+      webinarId: data.webinarId,
+      firstName: data.firstName,
+      lastName: data.lastName,
+      email: data.email,
+      phone: data.phone,
+      passcode: data.passcode,
+      role: data.role,
+    });
+
     const response = await fetch(`${this.baseUrl}/webinar/join-token`, {
       method: 'POST',
       headers: {
@@ -142,8 +141,9 @@ export class WebinarGGService {
         firstName: data.firstName || 'User',
         lastName: data.lastName || 'Participant',
         email: data.email,
-        phone: data.phone || '',
-        passcode: data.passcode || '',
+        phone: String(data.phone || ''),
+        passcode: String(data.passcode || ''),
+        role: data.role, // Added undocumented role parameter from support
       }),
     });
 

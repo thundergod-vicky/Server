@@ -140,6 +140,11 @@ model User {
   admission       Admission?
   
   sessionAttendance SessionAttendance[]
+
+  // Webinar.gg integration (Teacher-specific)
+  webinarApiKey    String? // AES-256 encrypted
+  webinarEmail     String?
+  webinarName      String?
 }
 
 model Subject {
@@ -202,8 +207,6 @@ model ClassSession {
 
   // webinar.gg integration
   webinarId         String?
-  webinarAccountId  String?
-  webinarAccount    WebinarGGAccount? @relation(fields: [webinarAccountId], references: [id])
   attendance       SessionAttendance[]
 
   recordings  SessionRecording[]
@@ -213,15 +216,6 @@ model ClassSession {
   updatedAt DateTime @updatedAt
 }
 
-model WebinarGGAccount {
-  id        String   @id @default(cuid())
-  name      String
-  apiKey    String   // AES-256 encrypted
-  isActive  Boolean  @default(true)
-  sessions  ClassSession[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-}
 
 model SessionAttendance {
   id          String       @id @default(cuid())
