@@ -16,10 +16,10 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
-    const user = await this.usersService.findOne(email);
-    if (user && (await bcrypt.compare(pass, user.password))) {
+    const user = (await this.usersService.findOne(email)) as any;
+    if (user && (await bcrypt.compare(pass, user.password as string))) {
       const result = { ...user };
-      delete (result as any).password;
+      delete result.password;
       return result;
     }
     return null;
@@ -36,6 +36,9 @@ export class AuthService {
       profileImage?: string;
       parentOf?: any[];
       parentRequests?: any[];
+      enrollmentId?: string;
+      phone?: string;
+      admission?: any;
     };
 
     const payload = {
@@ -61,11 +64,11 @@ export class AuthService {
         profileSlug: u.profileSlug,
         profileSettings: u.profileSettings,
         profileImage: u.profileImage,
-        enrollmentId: (u as any).enrollmentId,
-        phone: (u as any).phone,
+        enrollmentId: u.enrollmentId,
+        phone: u.phone,
         parentOf: u.parentOf,
         parentRequests: u.parentRequests,
-        admission: (u as any).admission,
+        admission: u.admission,
       },
     };
   }
@@ -86,18 +89,35 @@ export class AuthService {
   }
 
   async register(registerDto: any) {
-    const hashedPassword = await bcrypt.hash(registerDto.password, 10);
-    const user = await this.usersService.create({
-      ...registerDto,
+    const dto = registerDto as {
+      password?: string;
+      email?: string;
+      name?: string;
+      role?: string;
+    };
+    const hashedPassword = await bcrypt.hash(
+      (dto.password as string) || '',
+      10,
+    );
+    const user = (await this.usersService.create({
+      ...(dto as any),
       password: hashedPassword,
-    });
+    })) as any;
 
     // Notify Admins and Academic Operations about new registration
     try {
       await this.notificationsService.notifyRoles(
         ['ADMIN', 'ACADEMIC_OPERATIONS'],
         'New User Registered',
-        `A new ${registerDto.role.toLowerCase()} named ${registerDto.name} (${registerDto.email}) has just joined the platform.`,
+        `A new ${(dto.role || 'user').toLowerCase()} named ${dto.name || 'Unknown'} (${dto.email || 'No email'}) joined.`,
+        'INFO',
+      );
+
+      // Welcome the user themselves
+      await this.notificationsService.create(
+        (user as { id: string }).id,
+        'Welcome to Adhyayan!',
+        `Hi ${(user as { name: string }).name || 'User'}, your account is active. Welcome!`,
         'INFO',
       );
     } catch (error) {

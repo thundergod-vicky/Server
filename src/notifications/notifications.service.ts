@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { NotificationType } from '@prisma/client';
+import { NotificationType, Role } from '@prisma/client';
 
 @Injectable()
 export class NotificationsService {
@@ -50,18 +50,36 @@ export class NotificationsService {
     type: NotificationType,
   ) {
     try {
+      console.log(`[NotificationService] Notifying roles: ${roles.join(', ')}`);
+
       const users = await this.prisma.user.findMany({
         where: {
-          role: { in: roles as any },
+          role: { in: roles as Role[] },
         },
-        select: { id: true },
+        select: { id: true, role: true, name: true },
       });
+
+      console.log(
+        `[NotificationService] Found ${users.length} users with matching roles.`,
+      );
+
+      if (users.length === 0) {
+        console.warn(
+          `[NotificationService] No users found for roles: ${roles.join(', ')}. Check if roles in DB match exactly.`,
+        );
+      }
 
       for (const u of users) {
         await this.create(u.id, title, message, type);
+        console.log(
+          `[NotificationService] Created notification for ${u.name ?? 'User'} (Role: ${u.role})`,
+        );
       }
     } catch (error) {
-      console.error(`Failed to notify roles ${roles}:`, error);
+      console.error(
+        `[NotificationService] Failed to notify roles ${roles.join(', ')}:`,
+        error,
+      );
     }
   }
 
