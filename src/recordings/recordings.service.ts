@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { getSignedUrl } from '@aws-sdk/cloudfront-signer';
-import { S3Client, DeleteObjectsCommand, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  DeleteObjectsCommand,
+  GetObjectCommand,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl as getS3SignedUrl } from '@aws-sdk/s3-request-presigner';
 import { Upload } from '@aws-sdk/lib-storage';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -25,14 +30,13 @@ export class RecordingsService {
   private cloudfrontPrivateKey: string;
 
   constructor(private prisma: PrismaService) {
-    this.s3 = new S3Client({ region: process.env.AWS_S3_REGION || 'ap-south-1' });
+    this.s3 = new S3Client({
+      region: process.env.AWS_S3_REGION || 'ap-south-1',
+    });
 
     // Read CloudFront private key from file
     try {
-      const keyPath = path.resolve(
-        process.cwd(),
-        'cloudfront_private.pem',
-      );
+      const keyPath = path.resolve(process.cwd(), 'cloudfront_private.pem');
       this.cloudfrontPrivateKey = fs.readFileSync(keyPath, 'utf-8');
     } catch {
       console.warn(
@@ -77,15 +81,41 @@ export class RecordingsService {
     const keyPairId = process.env.CLOUDFRONT_KEY_PAIR_ID;
 
     if (!domain || !keyPairId || !this.cloudfrontPrivateKey) {
-      console.error(
-        '[RecordingsService] CloudFront config missing — returning unsigned URL',
+      console.warn(
+        '[RecordingsService] CloudFront config missing — falling back to S3 pre-signed URL',
       );
-      return {
-        url: `https://${domain || 's3-direct'}/${recording.s3Key}`,
-        fileType: recording.fileType || 'MP4',
-        duration: recording.durationSecs,
-        status: 'ready',
-      };
+
+      try {
+        const command = new GetObjectCommand({
+          Bucket: process.env.AWS_S3_BUCKET_NAME!,
+          Key: recording.s3Key,
+        });
+
+        // Generate S3 Pre-signed URL valid for 2 hours (7200 seconds)
+        const presignedUrl = await getS3SignedUrl(this.s3, command, {
+          expiresIn: 7200,
+        });
+
+        return {
+          url: presignedUrl,
+          fileType: recording.fileType || 'MP4',
+          duration: recording.durationSecs,
+          status: 'ready',
+          source: 's3-presigned',
+        };
+      } catch (err) {
+        console.error(
+          '[RecordingsService] Failed to generate S3 pre-signed URL',
+          err,
+        );
+        return {
+          url: `https://s3-direct/${recording.s3Key}`,
+          fileType: recording.fileType || 'MP4',
+          duration: recording.durationSecs,
+          status: 'ready',
+          error: 'Missing config and S3 presign failed',
+        };
+      }
     }
 
     const signedUrl = getSignedUrl({
@@ -165,9 +195,7 @@ export class RecordingsService {
     // Try to find a matching session — Zoom UUIDs are unique per instance,
     // but the numeric meetingId is what we store. We'll try to match.
     // If no match is found, we store them anyway for later matching.
-    let matchedSession = sessions.find(
-      (s) => s.meetingId === zoomMeetingUuid,
-    );
+    let matchedSession = sessions.find((s) => s.meetingId === zoomMeetingUuid);
 
     if (!matchedSession) {
       // The UUID might not match directly — store a placeholder URL
@@ -221,24 +249,20 @@ export class RecordingsService {
    * Step 2: Lambda calls this after uploading all files to S3.
    * Updates recordings with S3 keys and sets status='ready'.
    */
-  async markReady(
-    zoomMeetingUuid: string,
-    savedFiles: SavedFileInput[],
-  ) {
+  async markReady(zoomMeetingUuid: string, savedFiles: SavedFileInput[]) {
     let updated = 0;
 
     for (const file of savedFiles) {
       try {
         // Find the recording by URL pattern
-        const recording =
-          await this.prisma.sessionRecording.findFirst({
-            where: {
-              OR: [
-                { zoomFileId: file.zoomFileId },
-                { url: `zoom://${zoomMeetingUuid}/${file.zoomFileId}` },
-              ],
-            },
-          });
+        const recording = await this.prisma.sessionRecording.findFirst({
+          where: {
+            OR: [
+              { zoomFileId: file.zoomFileId },
+              { url: `zoom://${zoomMeetingUuid}/${file.zoomFileId}` },
+            ],
+          },
+        });
 
         if (recording) {
           await this.prisma.sessionRecording.update({
@@ -267,7 +291,7 @@ export class RecordingsService {
    */
   async syncWebinarRecording(sessionId: string, mp4Url: string, title: string) {
     const s3Key = `recordings/webinar-gg/${sessionId}/${Date.now()}.mp4`;
-    
+
     // Create the recording record with 'processing' status
     const recording = await this.prisma.sessionRecording.upsert({
       where: {
@@ -318,7 +342,10 @@ export class RecordingsService {
 
       return { success: true, recordingId: recording.id };
     } catch (err) {
-      console.error(`[RecordingsService] Webinar sync failed for ${sessionId}:`, err);
+      console.error(
+        `[RecordingsService] Webinar sync failed for ${sessionId}:`,
+        err,
+      );
       await this.prisma.sessionRecording.update({
         where: { id: recording.id },
         data: { status: 'failed' as any }, // Assuming failed is a valid status or just leaving it in processing
