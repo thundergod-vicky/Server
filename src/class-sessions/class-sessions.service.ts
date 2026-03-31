@@ -250,7 +250,7 @@ export class ClassSessionsService {
       },
     });
 
-    if (!session || !session.meetingId || !session.isOnline) {
+    if (!session || !session.isOnline) {
       return null;
     }
 
@@ -298,64 +298,8 @@ export class ClassSessionsService {
       };
     }
 
-    // Fallback: try to fetch recording from Zoom API (for meetings not yet processed by Lambda)
-    try {
-      console.log(
-        `[ClassSessionsService] Syncing recording for session ${id}, meetingId: ${session.meetingId}`,
-      );
-      const walk = await this.zoomService.getMeetingRecording(
-        session.meetingId,
-      );
-
-      if (walk && walk.recordings && walk.recordings.length > 0) {
-        // DO NOT save to SessionRecording table anymore to avoid duplicates with S3
-        // Just return the Zoom records as a transient fallback
-        const transientRecordings = walk.recordings.map((rec, index) => ({
-          id: `zoom-temp-${rec.id}`,
-          title:
-            rec.file_type === 'SHARE_URL'
-              ? 'Zoom Share Link'
-              : `Recording Part ${index + 1} - ${new Date(
-                  rec.recording_start || new Date(),
-                ).toLocaleTimeString()}`,
-          url: rec.url,
-          zoomFileId: rec.id,
-          passcode: walk.password,
-          fileType: rec.file_type,
-          status: 'ready',
-          recordedAt: rec.recording_start ? new Date(rec.recording_start) : null,
-          sessionId: id,
-          isTransient: true,
-        }));
-
-        // Update legacy fields for backward compatibility (optional but kept for safety)
-        if (walk.recordings.length > 0) {
-          await this.prisma.classSession.update({
-            where: { id },
-            data: {
-              recordingUrl: walk.recordings[0].url,
-              recordingPasscode: walk.password,
-            },
-          });
-        }
-
-        return {
-          url: walk.recordings[0].url,
-          passcode: walk.password,
-          recordings: transientRecordings,
-          source: 'zoom',
-        };
-      } else {
-        console.log(
-          `[ClassSessionsService] No recording found for meeting ${session.meetingId}`,
-        );
-      }
-    } catch (err) {
-      console.error(
-        '[ClassSessionsService] Failed to sync Zoom recording',
-        err,
-      );
-    }
+    // No recordings found in DB
+    return null;
 
     return null;
   }
