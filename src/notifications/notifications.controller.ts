@@ -27,6 +27,11 @@ export class NotificationsController {
     return this.notificationsService.getUnreadCount(req.user.id);
   }
 
+  @Patch('read-all')
+  markAllAsRead(@Request() req) {
+    return this.notificationsService.markAllAsRead(req.user.id);
+  }
+
   @Patch(':id/read')
   markAsRead(@Param('id') id: string) {
     return this.notificationsService.markAsRead(id);
