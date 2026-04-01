@@ -3,11 +3,16 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { ValidationPipe } from '@nestjs/common';
+import * as express from 'express';
 import dns from 'node:dns';
 
 async function bootstrap() {
   dns.setDefaultResultOrder('ipv4first');
   const app = await NestFactory.create(AppModule);
+  // Increase payload limits for large forms/photos
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+  
   app.useGlobalPipes(new ValidationPipe());
   // Swagger Configuration
   const config = new DocumentBuilder()

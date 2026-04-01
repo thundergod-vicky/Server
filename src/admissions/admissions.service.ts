@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-member-access */
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
-import { Injectable, InternalServerErrorException } from '@nestjs/common';
+import {
+  Injectable,
+  InternalServerErrorException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../content/s3.service';
 import { NotificationsService } from '../notifications/notifications.service';
@@ -169,7 +173,7 @@ export class AdmissionsService {
 
   async updateAdmission(id: string, data: any) {
     if (!id || id === 'undefined') {
-      throw new Error('Valid admission ID is required for update');
+      throw new BadRequestException('Valid admission ID is required for update');
     }
     return this.prisma.admission.update({
       where: { id },
@@ -182,7 +186,9 @@ export class AdmissionsService {
         ...(data.alternateContact !== undefined && { alternateContact: data.alternateContact }),
         ...(data.address && { address: data.address }),
         ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
-        ...(data.caste && { caste: (data.caste as string).toUpperCase() as Caste }),
+        ...(data.caste && { 
+          caste: (data.caste as string).toUpperCase() as Caste,
+        }),
         ...(data.studentClass && { studentClass: data.studentClass }),
         ...(data.stream && { stream: data.stream }),
         ...(data.course && { course: data.course }),
