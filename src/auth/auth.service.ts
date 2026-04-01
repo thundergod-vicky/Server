@@ -16,8 +16,12 @@ export class AuthService {
   ) {}
 
   async validateUser(email: string, pass: string): Promise<any> {
-    const user = (await this.usersService.findOne(email)) as any;
-    if (user && (await bcrypt.compare(pass, user.password as string))) {
+    console.log(`Validating user: ${email}`);
+    const user = (await this.usersService.findOne(email)) as {
+      password?: string;
+      [key: string]: any;
+    } | null;
+    if (user && user.password && (await bcrypt.compare(pass, user.password))) {
       const result = { ...user };
       delete result.password;
       return result;
@@ -54,7 +58,7 @@ export class AuthService {
       },
     });
 
-    return {
+    const result = {
       access_token: this.jwtService.sign(payload),
       user: {
         id: u.id,
@@ -71,6 +75,9 @@ export class AuthService {
         admission: u.admission,
       },
     };
+
+    console.log(`Login successful for ${u.email}, token generated`);
+    return result;
   }
 
   async logout(userId: string) {
@@ -102,7 +109,7 @@ export class AuthService {
     const user = (await this.usersService.create({
       ...(dto as any),
       password: hashedPassword,
-    })) as any;
+    } as any)) as { id: string; name: string; email: string };
 
     // Notify Admins and Academic Operations about new registration
     try {

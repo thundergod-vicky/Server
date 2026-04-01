@@ -6,12 +6,14 @@ import { PrismaModule } from '../prisma/prisma.module';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { JwtStrategy } from './jwt.strategy';
+import { BiometricJwtStrategy } from './biometric-jwt.strategy';
+import { BiometricAuthGuard } from './biometric-auth.guard';
 import { NotificationsModule } from '../notifications/notifications.module';
 
 @Module({
   imports: [
     UsersModule,
-    PassportModule,
+    PassportModule.register({ defaultStrategy: 'jwt' }),
     PrismaModule,
     NotificationsModule,
     JwtModule.register({
@@ -20,7 +22,12 @@ import { NotificationsModule } from '../notifications/notifications.module';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, JwtStrategy],
-  exports: [AuthService],
+  providers: [
+    AuthService,
+    JwtStrategy,
+    BiometricJwtStrategy,
+    BiometricAuthGuard,
+  ],
+  exports: [AuthService, BiometricAuthGuard, JwtModule, PassportModule],
 })
 export class AuthModule {}

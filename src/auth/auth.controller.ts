@@ -22,6 +22,7 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
   async login(@Body() loginDto: LoginDto) {
+    console.log(`Login attempt for ${loginDto?.email}`);
     if (!loginDto || !loginDto.email || !loginDto.password) {
       throw new UnauthorizedException('Missing email or password');
     }
