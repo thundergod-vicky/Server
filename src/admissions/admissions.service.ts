@@ -15,10 +15,21 @@ export class AdmissionsService {
   ) {}
 
   async getNextNumbers() {
-    const count = await this.prisma.admission.count();
-    const nextId = count + 1;
-    const formNumber = `ADH-${String(nextId).padStart(2, '0')}`;
-    const enrollmentNumber = String(nextId).padStart(3, '0');
+    const lastAdmission = await this.prisma.admission.findFirst({
+      orderBy: { createdAt: 'desc' },
+      select: { formNumber: true, enrollmentNumber: true }
+    });
+
+    let nextId = 1;
+    if (lastAdmission?.formNumber) {
+      const match = lastAdmission.formNumber.match(/ADH-(\d+)/);
+      if (match) {
+        nextId = parseInt(match[1]) + 1;
+      }
+    }
+
+    const formNumber = `ADH-${String(nextId).padStart(4, '0')}`;
+    const enrollmentNumber = String(nextId).padStart(6, '0');
 
     return { formNumber, enrollmentNumber };
   }
@@ -53,7 +64,7 @@ export class AdmissionsService {
         batchCode: data.batchCode,
         schoolName: data.schoolName,
         board: data.board,
-        caste: data.caste as Caste,
+        caste: (data.caste as string)?.toUpperCase() as Caste,
         photoUrl: photoUrl,
         formNumber: formNumber,
         enrollmentNumber: data.enrollmentNumber || enrollmentNumber,
@@ -157,6 +168,9 @@ export class AdmissionsService {
   }
 
   async updateAdmission(id: string, data: any) {
+    if (!id || id === 'undefined') {
+      throw new Error('Valid admission ID is required for update');
+    }
     return this.prisma.admission.update({
       where: { id },
       data: {
@@ -168,7 +182,7 @@ export class AdmissionsService {
         ...(data.alternateContact !== undefined && { alternateContact: data.alternateContact }),
         ...(data.address && { address: data.address }),
         ...(data.dateOfBirth && { dateOfBirth: new Date(data.dateOfBirth) }),
-        ...(data.caste && { caste: data.caste }),
+        ...(data.caste && { caste: (data.caste as string).toUpperCase() as Caste }),
         ...(data.studentClass && { studentClass: data.studentClass }),
         ...(data.stream && { stream: data.stream }),
         ...(data.course && { course: data.course }),
