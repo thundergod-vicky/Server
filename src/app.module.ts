@@ -23,6 +23,7 @@ import { BillingModule } from './billing/billing.module';
 import { ExamsModule } from './exams/exams.module';
 import { RecordingsModule } from './recordings/recordings.module';
 import { AdmissionsModule } from './admissions/admissions.module';
+import { AttendanceModule } from './attendance/attendance.module';
 
 @Module({
   imports: [
@@ -48,6 +49,7 @@ import { AdmissionsModule } from './admissions/admissions.module';
     ExamsModule,
     RecordingsModule,
     AdmissionsModule,
+    AttendanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
