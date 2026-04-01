@@ -11,9 +11,10 @@ export class NotificationsService {
     title: string,
     message: string,
     type: NotificationType,
+    actionUrl?: string,
   ) {
     return this.prisma.notification.create({
-      data: { userId, title, message, type },
+      data: { userId, title, message, type, actionUrl },
     });
   }
 
@@ -23,9 +24,10 @@ export class NotificationsService {
     title: string,
     message: string,
     type: NotificationType,
+    actionUrl?: string,
   ) {
     // 1. Notify student
-    await this.create(studentId, title, message, type);
+    await this.create(studentId, title, message, type, actionUrl);
 
     // 2. Find and notify all parents
     try {
@@ -35,7 +37,7 @@ export class NotificationsService {
       });
 
       for (const p of parents) {
-        await this.create(p.parentId, `[Child Update] ${title}`, message, type);
+        await this.create(p.parentId, `[Child Update] ${title}`, message, type, actionUrl);
       }
     } catch (error) {
       console.error('Failed to notify parents:', error);
@@ -48,6 +50,7 @@ export class NotificationsService {
     title: string,
     message: string,
     type: NotificationType,
+    actionUrl?: string,
   ) {
     try {
       console.log(`[NotificationService] Notifying roles: ${roles.join(', ')}`);
@@ -70,7 +73,7 @@ export class NotificationsService {
       }
 
       for (const u of users) {
-        await this.create(u.id, title, message, type);
+        await this.create(u.id, title, message, type, actionUrl);
         console.log(
           `[NotificationService] Created notification for ${u.name ?? 'User'} (Role: ${u.role})`,
         );

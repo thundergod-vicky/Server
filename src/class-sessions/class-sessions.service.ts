@@ -374,6 +374,7 @@ export class ClassSessionsService {
       `New Class Scheduled`,
       `You have a new ${session.type.toLowerCase()} session: "${session.title}" on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.`,
       'INFO',
+      `/dashboard?view=schedule`,
     );
 
     // Send notification to all students in the batch
@@ -383,6 +384,7 @@ export class ClassSessionsService {
         `New Class Scheduled`,
         `A new ${session.type.toLowerCase()} session "${session.title}" has been scheduled for your batch on ${new Date(session.date).toDateString()} from ${session.startTime} to ${session.endTime}${session.venue ? ' at ' + session.venue : ''}.${session.isOnline ? ' This is an online session. Join Link is available in the schedule.' : ''}`,
         'INFO',
+        `/dashboard?view=schedule`,
       );
     }
   }

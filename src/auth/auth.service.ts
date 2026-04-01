@@ -109,8 +109,9 @@ export class AuthService {
       await this.notificationsService.notifyRoles(
         ['ADMIN', 'ACADEMIC_OPERATIONS'],
         'New User Registered',
-        `A new ${(dto.role || 'user').toLowerCase()} named ${dto.name || 'Unknown'} (${dto.email || 'No email'}) joined.`,
+        `A new ${(dto.role || 'user').toLowerCase()} named ${dto.name || 'Unknown'} joined.`,
         'INFO',
+        `/dashboard?view=users`,
       );
 
       // Welcome the user themselves
@@ -119,6 +120,7 @@ export class AuthService {
         'Welcome to Adhyayan!',
         `Hi ${(user as { name: string }).name || 'User'}, your account is active. Welcome!`,
         'INFO',
+        `/dashboard?view=courses`,
       );
     } catch (error) {
       console.error('Failed to notify staff about registration:', error);

@@ -66,8 +66,9 @@ export class AdmissionsService {
       await this.notificationsService.notifyRoles(
         ['ADMIN', 'ACADEMIC_OPERATIONS'],
         'New Admission Submission',
-        `${data.studentName} has submitted an admission form. Form ID: ${formNumber}`,
+        `${data.studentName} (${data.email}) has submitted an admission form. Form ID: ${formNumber}`,
         'INFO',
+        `/dashboard?view=users&studentId=${admission.studentId}`,
       );
     } catch (error) {
       console.error('Failed to notify staff about admission:', error);
