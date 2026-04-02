@@ -90,4 +90,36 @@ export class AdmissionsController {
   rejectAdmission(@Param('id') id: string) {
     return this.admissionsService.rejectAdmission(id);
   }
+
+  // --- Parent Onboarding ---
+
+  @Post('parent-onboarding')
+  submitParentOnboarding(@Req() req, @Body() data: any) {
+    return this.admissionsService.submitParentOnboarding(
+      req.user.id || req.user.userId,
+      data,
+    );
+  }
+
+  @Get('parent-onboarding/me')
+  getMyParentOnboarding(@Req() req) {
+    return this.admissionsService.getParentOnboardingByParentId(
+      req.user.id || req.user.userId,
+    );
+  }
+
+  @Get('parent-onboardings')
+  getAllParentOnboardings() {
+    return this.admissionsService.getAllParentOnboardings();
+  }
+
+  @Patch('parent-onboarding/:id/approve')
+  approveParentOnboarding(@Param('id') id: string) {
+    return this.admissionsService.approveParentOnboarding(id);
+  }
+
+  @Patch('parent-onboarding/:id/reject')
+  rejectParentOnboarding(@Param('id') id: string) {
+    return this.admissionsService.rejectParentOnboarding(id);
+  }
 }

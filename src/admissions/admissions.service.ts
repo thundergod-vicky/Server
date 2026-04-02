@@ -2,7 +2,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment */
 import {
   Injectable,
-  InternalServerErrorException,
   BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
@@ -50,33 +49,17 @@ export class AdmissionsService {
     }
 
     const { formNumber, enrollmentNumber } = await this.getNextNumbers();
-
-    const admission = await this.prisma.admission.create({
-      data: {
-        studentId: userId,
-        studentName: data.studentName,
-        fatherName: data.fatherName,
-        motherName: data.motherName,
-        email: data.email,
-        address: data.address,
-        dateOfBirth: new Date(data.dateOfBirth),
-        contactNumber: data.contactNumber,
-        alternateContact: data.alternateContact,
-        studentClass: data.studentClass,
-        stream: (data.stream as string).toUpperCase() as Stream,
-        course: data.course,
-        batchCode: data.batchCode,
-        schoolName: data.schoolName,
-        board: data.board,
-        caste: (data.caste as string)?.toUpperCase() as Caste,
-        photoUrl: photoUrl,
-        formNumber: formNumber,
-        enrollmentNumber: data.enrollmentNumber || enrollmentNumber,
-        status: 'PENDING',
-        admissionDate: new Date(),
-      },
-    });
-
+    const admissionData = {
+      ...data,
+      studentId: userId,
+      formNumber,
+      enrollmentNumber,
+      photoUrl,
+      status: AdmissionStatus.PENDING,
+      dateOfBirth: new Date(data.dateOfBirth),
+      admissionDate: new Date(),
+    };
+    const admission = await this.prisma.admission.create({ data: admissionData });
     try {
       await this.notificationsService.notifyRoles(
         ['ADMIN', 'ACADEMIC_OPERATIONS'],
@@ -239,5 +222,48 @@ export class AdmissionsService {
     const metadata = await this.s3Service.getFileMetadata(key);
 
     return { stream, contentType: metadata.mimeType };
+  }
+
+  // --- Parent Onboarding ---
+
+  async submitParentOnboarding(parentId: string, data: any) {
+    return await this.prisma.parentOnboarding.create({
+      data: {
+        parentId,
+        parentName: data.parentName,
+        fatherOrSpouseName: data.fatherOrSpouseName,
+        studentName: data.studentName,
+        studentEmail: data.studentEmail,
+        address: data.address,
+        willingToTakeResp: data.willingToTakeResp === true || data.willingToTakeResp === 'true',
+        status: 'PENDING',
+      },
+    });
+  }
+
+  async getParentOnboardingByParentId(parentId: string) {
+    return await this.prisma.parentOnboarding.findUnique({
+      where: { parentId },
+    });
+  }
+
+  async getAllParentOnboardings() {
+    return await this.prisma.parentOnboarding.findMany({
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  async approveParentOnboarding(id: string) {
+    return await this.prisma.parentOnboarding.update({
+      where: { id },
+      data: { status: 'APPROVED' },
+    });
+  }
+
+  async rejectParentOnboarding(id: string) {
+    return await this.prisma.parentOnboarding.update({
+      where: { id },
+      data: { status: 'REJECTED' },
+    });
   }
 }

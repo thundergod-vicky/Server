@@ -133,32 +133,33 @@ model User {
   batchesEnrolled Batch[]        @relation("StudentBatches")
   classSessions   ClassSession[] @relation("TeacherSessions")
   invoices        Invoice[]
-  
-  assignedExams   Exam[]         @relation("AssignedExams")
-  createdExams    Exam[]         @relation("CreatedExams")
-  examResults     ExamResult[]
-  admission       Admission?
-  
+
+  assignedExams Exam[]       @relation("AssignedExams")
+  createdExams  Exam[]       @relation("CreatedExams")
+  examResults   ExamResult[]
+  admission     Admission?
+
   sessionAttendance SessionAttendance[]
 
   // Webinar.gg integration (Teacher-specific)
   webinarApiKey    String? // AES-256 encrypted
   webinarEmail     String?
   webinarName      String?
+  parentOnboarding ParentOnboarding? @relation("UserParentOnboarding")
 }
 
 model Subject {
-  id        String   @id @default(cuid())
+  id        String         @id @default(cuid())
   name      String
   batchId   String
-  batch     Batch    @relation(fields: [batchId], references: [id], onDelete: Cascade)
+  batch     Batch          @relation(fields: [batchId], references: [id], onDelete: Cascade)
   sessions  ClassSession[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  createdAt DateTime       @default(now())
+  updatedAt DateTime       @updatedAt
+  courses   Course[]       @relation("SubjectCourses")
 
   @@unique([name, batchId])
   @@index([batchId])
-  courses   Course[] @relation("SubjectCourses")
 }
 
 model Batch {
@@ -198,16 +199,16 @@ model ClassSession {
   notified  Boolean     @default(false)
 
   // zoom integration (Legacy)
-  isOnline   Boolean @default(false)
-  meetingUrl String?
-  meetingId  String?
-  meetingPasscode String?
-  recordingUrl String?
+  isOnline          Boolean @default(false)
+  meetingUrl        String?
+  meetingId         String?
+  meetingPasscode   String?
+  recordingUrl      String?
   recordingPasscode String?
 
   // webinar.gg integration
-  webinarId         String?
-  attendance       SessionAttendance[]
+  webinarId  String?
+  attendance SessionAttendance[]
 
   recordings  SessionRecording[]
   attachments SessionAttachment[]
@@ -216,15 +217,14 @@ model ClassSession {
   updatedAt DateTime @updatedAt
 }
 
-
 model SessionAttendance {
-  id          String       @id @default(cuid())
-  sessionId   String
-  studentId   String
-  joinedAt    DateTime     @default(now())
-  session     ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
-  student     User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  
+  id        String       @id @default(cuid())
+  sessionId String
+  studentId String
+  joinedAt  DateTime     @default(now())
+  session   ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student   User         @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
   @@unique([sessionId, studentId])
 }
 
@@ -234,7 +234,7 @@ model SessionRecording {
   url          String
   s3Key        String?
   passcode     String?
-  fileType     String?      // 'MP4', 'M4A', 'TRANSCRIPT'
+  fileType     String? // 'MP4', 'M4A', 'TRANSCRIPT'
   status       String       @default("ready") // 'processing', 'ready', 'deleted'
   durationSecs Int?
   recordedAt   DateTime?
@@ -251,7 +251,7 @@ model SessionAttachment {
   id        String       @id @default(cuid())
   title     String
   url       String
-  type      String       // 'PDF', 'PRESENTATION', 'OTHER'
+  type      String // 'PDF', 'PRESENTATION', 'OTHER'
   sessionId String
   session   ClassSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
   createdAt DateTime     @default(now())
@@ -282,10 +282,10 @@ model Course {
   createdAt   DateTime           @default(now())
   updatedAt   DateTime           @updatedAt
 
-  batchId     String?
-  batch       Batch?             @relation("BatchCourses", fields: [batchId], references: [id])
-  subjectId   String?
-  subject     Subject?           @relation("SubjectCourses", fields: [subjectId], references: [id])
+  batchId   String?
+  batch     Batch?   @relation("BatchCourses", fields: [batchId], references: [id])
+  subjectId String?
+  subject   Subject? @relation("SubjectCourses", fields: [subjectId], references: [id])
 }
 
 model Enrollment {
@@ -539,41 +539,42 @@ enum InvoiceStatus {
 }
 
 model BillingTemplate {
-  id          String   @id @default(cuid())
+  id          String    @id @default(cuid())
   name        String
   description String?
   baseAmount  Float
-  taxRate     Float    @default(18.0)
-  tenure      String?  // e.g., "03 Months"
-  batch       String?  // e.g., "Alpha Advanced"
-  discount    String?  // e.g., "25%"
-  items       Json?    // Optional: List of line items
-  metadata    Json?    // New: Rich template defaults (branding, plans, etc.)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  taxRate     Float     @default(18.0)
+  tenure      String? // e.g., "03 Months"
+  batch       String? // e.g., "Alpha Advanced"
+  discount    String? // e.g., "25%"
+  items       Json? // Optional: List of line items
+  metadata    Json? // New: Rich template defaults (branding, plans, etc.)
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
   invoices    Invoice[]
 }
 
 model Invoice {
-  id            String        @id @default(cuid())
-  invoiceNumber String        @unique
+  id            String           @id @default(cuid())
+  invoiceNumber String           @unique
   studentId     String
   templateId    String?
   amount        Float
   tax           Float
   total         Float
-  status        InvoiceStatus @default(PENDING)
-  paymentMethod String?       // New: upi, card, cash, cheque
-  transactionId String?       // New: Indexable transaction reference
-  metadata      Json?         // New: Full snapshot of 30+ fields
-  items         Json?         // Detailed line items
+  status        InvoiceStatus    @default(PENDING)
+  paymentMethod String? // New: upi, card, cash, cheque
+  transactionId String? // New: Indexable transaction reference
+  metadata      Json? // New: Full snapshot of 30+ fields
+  items         Json? // Detailed line items
   sentAt        DateTime?
   pdFUrl        String?
-  student       User          @relation(fields: [studentId], references: [id])
+  student       User             @relation(fields: [studentId], references: [id])
   template      BillingTemplate? @relation(fields: [templateId], references: [id])
-  createdAt     DateTime      @default(now())
-  updatedAt     DateTime      @updatedAt
+  createdAt     DateTime         @default(now())
+  updatedAt     DateTime         @updatedAt
 }
+
 enum ExamStatus {
   DRAFT
   PLANNED
@@ -581,31 +582,31 @@ enum ExamStatus {
 }
 
 model Exam {
-  id             String       @id @default(cuid())
-  title          String
-  description    String?
-  status         ExamStatus   @default(PLANNED)
-  
-  startTime      DateTime?
-  endTime        DateTime?
-  duration       Int?         // in minutes
-  
-  questions      Json?        // Array of questions
-  totalQuestions Int          @default(0)
-  
-  batchId        String?
-  batch          Batch?       @relation(fields: [batchId], references: [id])
-  
+  id          String     @id @default(cuid())
+  title       String
+  description String?
+  status      ExamStatus @default(PLANNED)
+
+  startTime DateTime?
+  endTime   DateTime?
+  duration  Int? // in minutes
+
+  questions      Json? // Array of questions
+  totalQuestions Int   @default(0)
+
+  batchId String?
+  batch   Batch?  @relation(fields: [batchId], references: [id])
+
   // Specific student assignments (optional)
-  assignedStudents User[]     @relation("AssignedExams")
-  
-  creatorId      String
-  creator        User         @relation("CreatedExams", fields: [creatorId], references: [id])
-  
-  results        ExamResult[]
-  
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
+  assignedStudents User[] @relation("AssignedExams")
+
+  creatorId String
+  creator   User   @relation("CreatedExams", fields: [creatorId], references: [id])
+
+  results ExamResult[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model ExamResult {
@@ -644,38 +645,55 @@ enum Caste {
 }
 
 model Admission {
-  id                    String   @id @default(cuid())
-  studentId             String   @unique
-  student               User     @relation(fields: [studentId], references: [id])
-  
-  admissionDate         DateTime?
-  formNumber            String   @unique @default(cuid())
-  enrollmentNumber      String?  @unique
-  
-  studentName           String
-  fatherName            String
-  motherName            String
-  email                 String
-  address               String
-  dateOfBirth           DateTime
-  contactNumber         String
-  alternateContact      String?
-  
-  studentClass          String
-  stream                Stream   @default(NONE)
-  course                String   
-  
-  batchCode             String?  
-  schoolName            String
-  board                 String
-  caste                 Caste    @default(GENERAL)
-  photoUrl              String?
-  
-  status                AdmissionStatus @default(PENDING)
-  
-  approvedById          String?  
-  approvedAt            DateTime?
+  id        String @id @default(cuid())
+  studentId String @unique
+  student   User   @relation(fields: [studentId], references: [id])
 
-  createdAt             DateTime @default(now())
-  updatedAt             DateTime @updatedAt
+  admissionDate    DateTime?
+  formNumber       String    @unique @default(cuid())
+  enrollmentNumber String?   @unique
+
+  studentName      String
+  fatherName       String
+  motherName       String
+  email            String
+  address          String
+  dateOfBirth      DateTime
+  contactNumber    String
+  alternateContact String?
+
+  studentClass String
+  stream       Stream @default(NONE)
+  course       String
+
+  batchCode  String?
+  schoolName String
+  board      String
+  caste      Caste   @default(GENERAL)
+  photoUrl   String?
+
+  status AdmissionStatus @default(PENDING)
+
+  approvedById String?
+  approvedAt   DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
+
+model ParentOnboarding {
+  id                 String  @id @default(cuid())
+  parentId           String? @unique
+  parent             User?   @relation("UserParentOnboarding", fields: [parentId], references: [id])
+  parentName         String
+  fatherOrSpouseName String
+  studentName        String
+  studentEmail       String
+  address            String
+  willingToTakeResp  Boolean @default(false)
+
+  status AdmissionStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
