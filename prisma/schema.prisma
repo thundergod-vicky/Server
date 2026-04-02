@@ -145,6 +145,8 @@ model User {
   webinarApiKey    String? // AES-256 encrypted
   webinarEmail     String?
   webinarName      String?
+
+  sessionId        String?
 }
 
 model Subject {
