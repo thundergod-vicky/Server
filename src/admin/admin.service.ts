@@ -50,6 +50,7 @@ export class AdminService {
   async getAllUsers() {
     return this.prisma.user.findMany({
       include: {
+        admission: true,
         _count: {
           select: {
             enrollments: true,

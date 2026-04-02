@@ -1,7 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
-import { ZoomService } from '../zoom/zoom.service';
 import { WebinarGGService } from '../webinar-gg/webinar-gg.service';
 
 @Injectable()
@@ -9,7 +8,6 @@ export class ClassSessionsService {
   constructor(
     private prisma: PrismaService,
     private notifications: NotificationsService,
-    private zoomService: ZoomService,
     private webinarService: WebinarGGService,
   ) {}
 
@@ -346,7 +344,7 @@ export class ClassSessionsService {
       const meeting = await this.webinarService.createMeeting({
         title: data.title,
         date: date.toISOString().split('T')[0],
-        time: data.startTime,
+        time: this.formatTo12Hour(data.startTime),
         meridiem: this.getMeridiem(data.startTime),
         timezone: 'Asia/Kolkata', // Default to Kolkata as per context
         recordingEnabled: true,
@@ -365,6 +363,13 @@ export class ClassSessionsService {
   private getMeridiem(timeStr: string): string {
     const [hrs] = timeStr.split(':').map(Number);
     return hrs >= 12 ? 'PM' : 'AM';
+  }
+
+  private formatTo12Hour(timeStr: string): string {
+    let [hrs, mins] = timeStr.split(':').map(Number);
+    hrs = hrs % 12;
+    if (hrs === 0) hrs = 12;
+    return `${hrs.toString().padStart(2, '0')}:${mins.toString().padStart(2, '0')}`;
   }
 
   private async sendSessionNotifications(session: any) {

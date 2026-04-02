@@ -295,6 +295,7 @@ export class UsersService {
         enrollmentId: true,
         academicAssignedAt: true,
         assignedByTeacher: { select: { name: true } },
+        admission: true,
         _count: {
           select: {
             enrollments: true,
