@@ -186,6 +186,7 @@ export class UsersService {
           orderBy: { createdAt: 'desc' },
         },
         admission: true,
+        parentOnboarding: true,
       },
     });
 
@@ -273,6 +274,7 @@ export class UsersService {
               orderBy: { createdAt: 'desc' },
             },
             admission: true,
+            parentOnboarding: true,
           },
         });
       }

@@ -8,6 +8,7 @@ import { PrismaService } from '../prisma/prisma.service';
 import { S3Service } from '../content/s3.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import { AdmissionStatus, Stream, Caste } from '@prisma/client';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class AdmissionsService {
@@ -15,6 +16,7 @@ export class AdmissionsService {
     private prisma: PrismaService,
     private s3Service: S3Service,
     private notificationsService: NotificationsService,
+    private usersService: UsersService,
   ) {}
 
   async getNextNumbers() {
@@ -227,7 +229,7 @@ export class AdmissionsService {
   // --- Parent Onboarding ---
 
   async submitParentOnboarding(parentId: string, data: any) {
-    return await this.prisma.parentOnboarding.create({
+    const onboarding = await this.prisma.parentOnboarding.create({
       data: {
         parentId,
         parentName: data.parentName,
@@ -239,6 +241,17 @@ export class AdmissionsService {
         status: 'PENDING',
       },
     });
+
+    // Auto-link student if email provided
+    if (data.studentEmail) {
+      try {
+        await this.usersService.createParentRequest(parentId, data.studentEmail);
+      } catch (error) {
+        console.error('Failed to auto-create parent request during onboarding:', error.message);
+      }
+    }
+
+    return onboarding;
   }
 
   async getParentOnboardingByParentId(parentId: string) {
