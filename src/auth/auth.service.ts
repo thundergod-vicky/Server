@@ -5,6 +5,7 @@ import { JwtService } from '@nestjs/jwt';
 import { PrismaService } from '../prisma/prisma.service';
 import { NotificationsService } from '../notifications/notifications.service';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 
 @Injectable()
 export class AuthService {
@@ -41,13 +42,21 @@ export class AuthService {
       admission?: any;
     };
 
+    const sessionId = crypto.randomUUID();
+
     const payload = {
       email: u.email,
       sub: u.id,
       role: u.role,
+      sessionId,
     };
 
-    // Create login history
+    // Update user's sessionId and create login history
+    await this.prisma.user.update({
+      where: { id: u.id },
+      data: { sessionId },
+    });
+
     await this.prisma.loginHistory.create({
       data: {
         userId: u.id,

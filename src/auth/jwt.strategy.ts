@@ -18,6 +18,12 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
     if (!user) {
       throw new UnauthorizedException();
     }
+
+    // Single session validation
+    if (user.sessionId && payload.sessionId !== user.sessionId) {
+      throw new UnauthorizedException('Session invalidated by a newer login');
+    }
+
     return user;
   }
 }
