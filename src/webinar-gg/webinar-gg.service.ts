@@ -80,23 +80,38 @@ export class WebinarGGService {
     recordingEnabled: boolean;
     apiKey: string;
   }) {
+    const requestBody = {
+      title: data.title,
+      date: data.date,
+      time: data.time,
+      meridiem: data.meridiem,
+      timezone: data.timezone,
+      recordingEnabled: data.recordingEnabled,
+    };
+
+    try {
+      const fs = require('fs');
+      const logMsg = `[WebinarGG DEBUG] Request: ${JSON.stringify(requestBody)}\n`;
+      fs.appendFileSync('/tmp/webinar_debug.log', logMsg);
+    } catch (e) {}
+
     const response = await fetch(`${this.baseUrl}/webinar/`, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${data.apiKey}`,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        title: data.title,
-        date: data.date,
-        time: data.time,
-        meridiem: data.meridiem,
-        timezone: data.timezone,
-        recordingEnabled: data.recordingEnabled,
-      }),
+      body: JSON.stringify(requestBody),
     });
 
     const resData = await response.json();
+    
+    try {
+      const fs = require('fs');
+      const logMsg = `[WebinarGG DEBUG] Response: ${JSON.stringify(resData)}\n`;
+      fs.appendFileSync('/tmp/webinar_debug.log', logMsg);
+    } catch (e) {}
+
     console.log(
       '[WebinarGG API] Create Meeting Response:',
       JSON.stringify(resData, null, 2),
