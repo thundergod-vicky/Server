@@ -74,8 +74,8 @@ export class WebinarGGService {
   async createMeeting(data: {
     title: string;
     date: string; // YYYY-MM-DD
-    time: string; // HH:mm
-    meridiem: string; // AM/PM
+    time: string; // HH:mm — send 24-hour format so consumer page shows it unambiguously (e.g. "14:20")
+    meridiem: string; // AM/PM — required by Webinar.gg API validation (consumer page ignores it)
     timezone: string;
     recordingEnabled: boolean;
     apiKey: string;

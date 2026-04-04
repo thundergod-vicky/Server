@@ -344,9 +344,9 @@ export class ClassSessionsService {
       const meeting = await this.webinarService.createMeeting({
         title: data.title,
         date: date.toISOString().split('T')[0],
-        time: this.formatTo12Hour(data.startTime),
-        meridiem: this.getMeridiem(data.startTime),
-        timezone: 'Asia/Kolkata', // Default to Kolkata as per context
+        time: this.formatTo12Hour(data.startTime), // Webinar.gg API expects 12h format (e.g. "07:40" for 19:40)
+        meridiem: this.getMeridiem(data.startTime), // AM/PM — required by API validation
+        timezone: 'Asia/Kolkata',
         recordingEnabled: true,
         apiKey: account.apiKey,
       });
@@ -360,6 +360,9 @@ export class ClassSessionsService {
     }
   }
 
+  // Webinar.gg API expects 12-hour time in the `time` field.
+  // Sending 24-hour format causes their backend to mangle the time (e.g. "19:40" → "07:40 AM")
+  // and shift the date by +1 day due to their internal timezone conversion bug.
   private getMeridiem(timeStr: string): string {
     const [hrs] = timeStr.split(':').map(Number);
     return hrs >= 12 ? 'PM' : 'AM';
